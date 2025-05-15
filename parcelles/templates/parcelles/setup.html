@@ -1,0 +1,259 @@
+{% extends "parcelles/app_base.html" %}
+{% load static %}
+<!-- Instructions about setting up -->
+<!-- This page has clear instructions to set up this Django app locally -->
+
+{% block title %}Documentation{% endblock %}
+{% block script %}
+
+{% endblock %}
+{% block content %}
+    <div class="container-fluid">
+        <div class="row mt-4">
+            <div class="col-lg-12 mb-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Overview</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-left text-dark">
+                            <p>Génération de Code BDN est une application web conçue pour la gestion et l’analyse des parcelles, offrant deux fonctionnalités principales : la génération de codes BDN uniques et l’évaluation cadastrale des parcelles.
+
+                                <li>Génération de Codes BDN Uniques : Cette fonctionnalité permet d’importer des fichiers GeoJSON, de générer des codes BDN uniques pour chaque parcelle, et de produire des QR codes associés pour la géolocalisation. Les utilisateurs peuvent également télécharger les données enrichies sous forme de fichiers GeoJSON ou d’un dossier ZIP contenant les QR codes.</li>
+<li>Évaluation Cadastrale : Cette fonctionnalité permet d’importer des fichiers GeoJSON, de visualiser les parcelles sur une carte interactive, et d’effectuer une évaluation individuelle ou en masse. Les utilisateurs peuvent générer des rapports d’évaluation sous forme de PDF ou Excel, intégrant des données comme la valeur des locaux, des clôtures, des cours, des dépendances, des aménagements, et des terrains.</li>
+<li>L’application utilise une interface cartographique basée sur Leaflet pour la visualisation des données géospatiales et intègre des bibliothèques comme GeoPandas pour le traitement des données et ReportLab pour la génération de rapports.</li> </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-lg-12 mb-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Structure et utilisation des interfaces</h6>
+                    </div>
+                    <div class="card-body">
+    <div class="text-left text-dark">
+
+        <p>L’application propose deux interfaces principales accessibles via des pages web distinctes.</p>
+
+        <h6>1. Interface "Code BDN Unique" (<code>/BDN MAP/</code>)</h6>
+        <p>Cette interface permet de générer des codes BDN uniques pour les parcelles et de télécharger les résultats sous forme de fichiers GeoJSON ou ZIP.</p>
+        <h6>Structure de l’interface :</h6>
+        <ul>
+            <li><strong>Carte interactive (<code>#BDN MAP</code>)</strong> : Une carte Leaflet centrée par défaut à la position <code>[42.35, -71.08]</code> avec un zoom de 3. Les utilisateurs peuvent importer des données GeoJSON pour visualiser les parcelles.</li>
+            <li><strong>Formulaire d’importation (<code>#Televersement</code>)</strong> :
+                <ul>
+                    <li>Champ pour importer un fichier (<code>.geojson</code>).</li>
+                    <li>Bouton <strong>Importer</strong> pour charger les données sur la carte.</li>
+                </ul>
+            </li>
+            <li><strong>Boutons d’action</strong> :
+                <ul>
+                    <li><strong>Générer les Codes BDN</strong> : Déclenche la génération des codes BDN via une requête POST à l’URL de <code>Generation De Code</code>.</li>
+                    <li><strong>Visualiser les Données Générées</strong> : Redirige vers une page pour consulter les données générées.</li>
+                    <li><strong>Télécharger le fichier enrichi (<code>#download-geojson</code>)</strong> : Permet de télécharger le fichier GeoJSON enrichi avec les codes BDN.</li>
+                    <li><strong>Télécharger QR Codes (<code>#download-qr-zip</code>)</strong> : Permet de télécharger un dossier ZIP contenant les QR codes des parcelles.</li>
+                </ul>
+            </li>
+            <li><strong>Section "À propos"</strong> : Fournit des instructions simples pour importer un fichier GeoJSON, télécharger le fichier enrichi, et obtenir les QR codes.</li>
+        </ul>
+        <h6>Utilisation :</h6>
+        <ol>
+            <li><strong>Importer un fichier GeoJSON</strong> :
+                <ul>
+                    <li>Cliquez sur le champ de fichier et sélectionnez un fichier GeoJSON (ou autre format accepté).</li>
+                    <li>Cliquez sur <strong>Importer</strong> pour afficher les parcelles sur la carte.</li>
+                    <li>Les parcelles sont affichées avec un style bleu (<code>color: #3388ff</code>), et un survol met en surbrillance en jaune.</li>
+                    <li>Un clic sur une parcelle ouvre une fenêtre popup affichant les propriétés de la parcelle (divisées en deux parties navigables via un bouton "Suivant/Précédent").</li>
+                </ul>
+            </li>
+            <li><strong>Générer les codes BDN</strong> :
+                <ul>
+                    <li>Cliquez sur <strong>Générer les Codes BDN</strong> pour lancer le processus.</li>
+                    <li>Un message de traitement peut apparaître (<code>#processing-message</code>).</li>
+                </ul>
+            </li>
+            <li><strong>Télécharger les résultats</strong> :
+                <ul>
+                    <li>Une fois les codes générés, utilisez <strong>Télécharger le fichier enrichi</strong> pour obtenir le GeoJSON enrichi.</li>
+                    <li>Utilisez <strong>Télécharger QR Codes</strong> pour obtenir un dossier ZIP contenant les QR codes.</li>
+                </ul>
+            </li>
+        </ol>
+
+        <h6>2. Interface "Évaluation" (<code>/evaluation/</code>)</h6>
+        <p>Cette interface permet de visualiser et d’évaluer les parcelles, avec des options pour des évaluations individuelles ou en masse.</p>
+        <h6>Structure de l’interface :</h6>
+        <ul>
+            <li><strong>Carte interactive (<code>Map Evaluation</code>)</strong> : Une carte Leaflet pour afficher les parcelles importées.</li>
+            <li><strong>Formulaire d’importation (<code>Televersement</code>)</strong> :
+                <ul>
+                    <li>Champ pour importer un fichier (<code>.geojson</code>).</li>
+                    <li>Bouton <strong>Importer</strong> pour charger les données sur la carte.</li>
+                </ul>
+            </li>
+            <li><strong>Boutons d’action</strong> :
+                <ul>
+                    <li><strong>Street View (<code>#Images</code>)</strong> : Génère des images Street View pour les parcelles via une requête POST à l'url de <code>D'images Street Views</code>.</li>
+                    <li><strong>Eval-masse</strong> : Redirige vers une page pour une évaluation en masse (<code>Formulaire Multi-Etapes</code>).</li>
+                </ul>
+            </li>
+            <li><strong>Popup d’évaluation individuelle (<code>Indiv Ev</code>)</strong> :
+                <ul>
+                    <li>S’ouvre lors d’un clic sur une parcelle, affichant le NICAD et une image Street View (si disponible).</li>
+                    <li>Contient un formulaire multi-étapes pour évaluer :
+                        <ol>
+                            <li><strong>Valeur des locaux</strong> : Saisie de l’état de vétusté, coefficient de voisinage, surface abandonnée, type de barème (collectif/individuel), et catégorie.</li>
+                            <li><strong>Valeur des clôtures</strong> : Saisie de l’état de vétusté et catégorie.</li>
+                            <li><strong>Valeur des cours</strong> : Saisie de l’état de vétusté et catégorie.</li>
+                            <li><strong>Valeur des dépendances</strong> : Saisie de l’état de vétusté, type de barème, et catégorie.</li>
+                            <li><strong>Valeur des aménagements</strong> : Aucune saisie supplémentaire.</li>
+                            <li><strong>Valeur des terrains</strong> : Aucune saisie supplémentaire.</li>
+                        </ol>
+                    </li>
+                    <li>Boutons <strong>Suivant</strong> et <strong>Précédent</strong> pour naviguer entre les étapes.</li>
+                    <li>Bouton <strong>Évaluer</strong> pour soumettre l’évaluation et générer un rapport PDF.</li>
+                </ul>
+            </li>
+            <li><strong>Contrôle des couches (<code>Manage Layer</code>)</strong> :
+                <ul>
+                    <li>Onglet <strong>Layers</strong> : Active/désactive les couches  et ajuste leur opacité.</li>
+                    <li>Onglet <strong>Basemaps</strong> : Permet de changer le fond de carte (OSM, Topo, Satellite, etc.).</li>
+                    <li>Onglet <strong>Legends</strong> : Affiche les légendes des couches sélectionnées.</li>
+                </ul>
+            </li>
+            <li><strong>Section "À propos"</strong> : Fournit des instructions pour importer un fichier, évaluer une parcelle, et naviguer dans le formulaire.</li>
+        </ul>
+        <h6>Utilisation :</h6>
+        <ol>
+            <li><strong>Importer un fichier GeoJSON</strong> :
+                <ul>
+                    <li>Sélectionnez un fichier GeoJSON et cliquez sur <strong>Importer</strong>.</li>
+                    <li>Les parcelles s’affichent sur la carte avec un style bleu (<code>color: #3388ff</code>).</li>
+                </ul>
+            </li>
+            <li><strong>Évaluation individuelle</strong> :
+                <ul>
+                    <li>Cliquez sur une parcelle pour ouvrir le popup d’évaluation.</li>
+                    <li>Remplissez les champs pour chaque étape (locaux, clôtures, cours, dépendances, aménagements, terrains).</li>
+                    <li>Naviguez avec <strong>Suivant</strong> et <strong>Précédent</strong>.</li>
+                    <li>Cliquez sur <strong>Évaluer</strong> pour générer un rapport PDF téléchargeable.</li>
+                </ul>
+            </li>
+            <li><strong>Évaluation en masse</strong> :
+                <ul>
+                    <li>Cliquez sur <strong>Eval-masse</strong> pour rediriger vers une page dédiée.</li>
+                </ul>
+            </li>
+            <li><strong>Génération d’images Street View</strong> :
+                <ul>
+                    <li>Cliquez sur <strong>Street View</strong> pour générer des images Street View des parcelles.</li>
+                    <li>Les résultats s’affichent sous la carte avec un lien vers Street View.</li>
+                </ul>
+            </li>
+            <li><strong>Contrôle des couches</strong> :
+                <ul>
+                    <li>Utilisez l’onglet <strong>Layers</strong> pour activer/désactiver les couches et ajuster leur opacité.</li>
+                    <li>Changez le fond de carte via l’onglet <strong>Basemaps</strong>.</li>
+                    <li>Consultez les légendes dans l’onglet <strong>Legends</strong>.</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+</div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-lg-12 mb-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+    <h6 class="m-0 font-weight-bold text-primary">Structure des données d’entrée à respecter</h6>
+</div>
+<div class="card-body">
+    <div class="text-left text-dark">
+        <p>Pour que l’application fonctionne correctement, les données d’entrée doivent respecter les formats et structures suivants.</p>
+
+        <h6>1. Fichiers GeoJSON</h6>
+        <p>Les deux interfaces acceptent des fichiers GeoJSON comme données d’entrée principale. Voici les spécifications :</p>
+        <ul>
+            <li><strong>Format</strong> : Fichier GeoJSON (<code>.geojson</code>), pour l'utilisation de toute autre fichier comme <code>.shp</code>, <code>.zip</code>, ou <code>.csv</code> veillez la convertir en <code>.geojson</code>.</li>
+            <li><strong>Structure générale</strong> :
+                <ul>
+                    <li>Doit contenir une collection de <code>Feature</code> avec des géométries de type <code>Polygon</code> ou <code>MultiPolygon</code>.</li>
+                    <li>Chaque <code>Feature</code> doit avoir une propriété <code>geometry</code> et une propriété <code>properties</code>.</li>
+                </ul>
+            </li>
+            <li><strong>Propriétés obligatoires</strong> :
+                <ul>
+                    <li><code>parcel_id</code> : Identifiant unique de la parcelle (utilisé pour la génération des codes BDN et les comparaisons historiques).</li>
+                    <li><code>region</code> : Nom de la région (par exemple, "DAKAR", "Thiès"). Doit correspondre aux régions définies dans les <code>abbreviation de Region</code> (backend <code></code>) :
+                        <ul>
+                            <li>Valeurs acceptées : <code>DAKAR</code>, <code>Diourbel</code>, <code>Fatick</code>, <code>Kaffrine</code>, <code>Kaolack</code>, <code>Kédougou</code>, <code>Kolda</code>, <code>Louga</code>, <code>Matam</code>, <code>Saint-Louis</code>, <code>Sédhiou</code>, <code>Tambacounda</code>, <code>Thiès</code>, <code>Ziguinchor</code>.</li>
+                        </ul>
+                    </li>
+                    <li><code>nicad</code> : Identifiant cadastral unique (utilisé dans l’évaluation pour identifier les parcelles).</li>
+                </ul>
+            </li>
+            <li><strong>Propriétés optionnelles (pour l’évaluation)</strong> :
+                <ul>
+                    <li><code>assise</code> : Surface bâtie (en m²).</li>
+                    <li><code>niveaux</code> : Nombre de niveaux.</li>
+                    <li><code>aban</code> : Surface abandonnée (entre 0 et 1).</li>
+                    <li><code>envet</code> : État de vétusté (entre 0 et 1).</li>
+                    <li><code>vois</code> : Coefficient de voisinage (entre 0 et 1).</li>
+                    <li><code>lr</code> : Longueur de la clôture (en m).</li>
+                    <li><code>Sr</code> : Surface des cours (en m²).</li>
+                    <li><code>Surfaced</code> : Surface des dépendances (en m²).</li>
+                    <li><code>coutrap</code> : Coût des aménagements particuliers (en FCFA).</li>
+                    <li><code>Prix_au_m</code> : Prix au m² du terrain.</li>
+                    <li><code>Superficie</code> : Superficie totale du terrain (en m²).</li>
+                </ul>
+            </li>
+            <li><strong>Exemple de fichier GeoJSON</strong> :
+                <pre>
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[long1, lat1], [long2, lat2], [long3, lat3], [long1, lat1]]]
+      },
+      "properties": {
+        "parcel_id": "P001",
+        "region": "DAKAR",
+        "nicad": "NICAD001",
+        "assise": 100,
+        "niveaux": 2,
+        "Superficie": 500
+      }
+    }
+  ]
+}
+                </pre>
+            </li>
+        </ul>
+
+        <h6>2. Système de coordonnées (CRS)</h6>
+        <ul>
+            <li>Les géométries doivent être dans un système de coordonnées reconnu (par exemple, EPSG:4326 pour les coordonnées géographiques ou un système projeté comme EPSG:3395).</li>
+            <li>Si le CRS n’est pas projeté, l’application effectue une reprojection temporaire (par exemple, vers EPSG:3395) pour calculer les superficies.</li>
+        </ul>
+
+        <h6>3. Contraintes supplémentaires</h6>
+        <ul>
+            <li><strong>Validité des géométries</strong> : Les géométries doivent être valides. Si des géométries invalides sont détectées, l’application les corrige automatiquement via <code>Make Valid</code> .</li>
+            <li><strong>Taille des fichiers</strong> : Les fichiers ne doivent pas dépasser une taille raisonnable (par exemple, 50 Mo, bien que cela ne soit pas explicitement spécifié dans le code).</li>
+            <li><strong>Unicité des codes</strong> : Pour la génération des codes BDN, les <code>parcel_id</code> doivent être uniques pour éviter les doublons.</li>
+        </ul>
+    </div>
+</div>
+            </div>
+        </div>
+
+
+    </div>
+{% endblock %}

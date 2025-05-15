@@ -1,0 +1,641 @@
+{% extends "parcelles/app_base.html" %}
+{% load static %}
+
+{% block title %}EVALUATION{% endblock %}
+{% block script %}
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-timedimension@1.1.1/dist/leaflet.timedimension.control.min.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.2/dist/leaflet.css" integrity="sha256-sA+zWATbFveLLNqWO2gtiw3HL/lh1giY/Inf1BJ0z14=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.2/dist/leaflet.js" integrity="sha256-o9N1jGDZrf5tS+Ft4gbIK7mYMipq9lqpVJ91xHSyKhg=" crossorigin=""></script>
+    <script src="https://unpkg.com/esri-leaflet@3.0.8/dist/esri-leaflet.js" integrity="sha512-E0DKVahIg0p1UHR2Kf9NX7x7TUewJb30mxkxEm2qOYTVJObgsAGpEol9F6iK6oefCbkJiA4/i6fnTHzM6H1kEA==" crossorigin=""></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/iso8601-js-period@0.2.1/iso8601.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/leaflet-timedimension@1.1.1/dist/leaflet.timedimension.min.js"></script>
+    <script src="{% static '/js/L.Control.Opacity.js' %}"></script>
+    <link href="{% static '/css/L.Control.Opacity.css' %}" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-search/3.0.5/leaflet-search.src.js" integrity="sha512-PDM7dpetuBcPp2fV/ZyCj9BGV8ybPchsrSzQqVZ3WoM8YcxEa2lAj0n1+4MCRzgsEROmVTwQXGw0IrXCCgH+/Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{% static '/js/leaflet-providers.js' %}"></script>
+    <script src="{% static '/js/utils.js' %}"></script>
+    <script src="{% static '/js/basemaps.js' %}"></script>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <link rel="stylesheet" href="{% static '/css/geosearch.css' %}"/>
+    <link rel="stylesheet" href="{% static '/css/gee_map.css' %}"/>
+    <script src="{% static '/js/geosearch.umd.js' %}"></script>
+    <script src="{% static '/js/map_utils.js' %}"></script>
+
+    <!-- Intro.js pour les tutoriels -->
+    <link href="https://cdn.jsdelivr.net/npm/intro.js@7.0.1/introjs.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/intro.js@7.0.1/intro.min.js"></script>
+
+    <style>
+        #evaluation-popup {
+            position: fixed;
+            top: 10%;
+            left: 10%;
+            width: 80%;
+            height: 80%;
+            background: white;
+            border: 2px solid #6e2c00;
+            border-radius: 10px;
+            z-index: 1000;
+            padding: 20px;
+            overflow: auto;
+            display: none;
+        }
+        #evaluation-popup .form-container {
+            width: 60%;
+            float: left;
+        }
+        #evaluation-popup .street-view-container {
+            width: 35%;
+            float: right;
+            text-align: center;
+        }
+        #evaluation-popup .location-view {
+            width: 35%;
+            float: left;
+            height: 150px;
+            margin-bottom: 10px;
+        }
+        #evaluation-popup .street-view-image {
+            max-width: 100%;
+            height: auto;
+        }
+        #close-popup {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+        }
+        .step {
+            display: none;
+        }
+        .step.active {
+            display: block;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid bg-gray-300">
+        <div class="row">
+            <div class="col-xl-12 col-lg-12">
+                <br>
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                        <h6 class="m-0 font-weight-bold text-primary">Evaluation Map Viewer</h6>
+                        <a href="{% url 'multi_step_eval' %}" class="btn btn-info">Eval-masse</a>
+                    </div>
+                    <div class="card-body">
+                        <link rel="stylesheet" href="{% static 'css/common.css' %}">
+                        <div id="map2"></div>
+                        <br>
+                        <form id="upload-form" method="post" enctype="multipart/form-data" action="">
+                            {% csrf_token %}
+                            <input type="file" name="file" id="geojson-upload_eval" accept=".geojson,.shp,.zip,.csv">
+                            <button type="submit" class="btn btn-primary btn-custom-orange">Importer</button>
+                        </form>
+                        <br>
+                        <a id="export" class="btn btn-primary btn-custom-orange text-center">Street View</a>
+                        <label class="ml-2">Please Genere les Images street view ICI.</label>
+
+                        <div id="evaluation-popup">
+                            <span id="close-popup" class="btn btn-danger">X</span>
+                            <div class="form-container">
+                                <h4 data-step="1" data-intro="Bienvenue dans l'évaluation individuelle ! Vous allez évaluer une parcelle spécifique en plusieurs étapes.">
+                                    Évaluation Individuelle - <span id="popup-nicad"></span>
+                                </h4>
+                                <form id="individual-multi-step-form" method="post">
+                                    {% csrf_token %}
+                                    <!-- Étape 1 : Locaux -->
+                                    <div class="step" id="ind-step-1">
+                                        <h5 data-step="2" data-intro="Étape 1 : Saisissez les informations sur les locaux, comme l'état de vétusté et la catégorie.">
+                                            Étape 1 : Valeur des Locaux
+                                        </h5>
+                                        <div class="form-group">
+                                            <label>État de vétusté (envet):</label>
+                                            <input type="number" step="0.1" min="0" max="1" name="locaux_envet" class="form-control" value="1" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Coefficient de voisinage (vois):</label>
+                                            <input type="number" step="0.1" min="0" max="1" name="locaux_vois" class="form-control" value="1" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Coefficient d'abbatement' (aban):</label>
+                                            <input type="number" step="0.1" min="0.5" max="1" name="locaux_aban" class="form-control" value="0" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Type de barème:</label>
+                                            <select name="locaux_type_bareme" class="form-control type-bareme" required>
+                                                <option value="collectif">Collectif</option>
+                                                <option value="individuel">Individuel</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Catégorie:</label>
+                                            <select name="locaux_categorie" class="form-control categorie" required></select>
+                                        </div>
+                                        <button type="button" class="btn btn-primary next" data-step="3" data-intro="Cliquez sur 'Suivant' pour passer à l'étape suivante.">
+                                            Suivant
+                                        </button>
+                                    </div>
+                                    <!-- Étape 2 : Clôtures -->
+                                    <div class="step" id="ind-step-2">
+                                        <h5>Étape 2 : Valeur des Clôtures</h5>
+                                        <div class="form-group">
+                                            <label>État de vétusté (envet):</label>
+                                            <input type="number" step="0.1" min="0" max="1" name="clotures_envet" class="form-control" value="1" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Catégorie:</label>
+                                            <select name="clotures_categorie" class="form-control" required>
+                                                <option value="1">1</option>
+                                                <option value="2">2</option>
+                                                <option value="3">3</option>
+                                                <option value="4">4</option>
+                                                <option value="5">5</option>
+                                                <option value="6">6</option>
+                                                <option value="7">7</option>
+                                            </select>
+                                        </div>
+                                        <button type="button" class="btn btn-secondary prev">Précédent</button>
+                                        <button type="button" class="btn btn-primary next">Suivant</button>
+                                    </div>
+                                    <!-- Étape 3 : Cours -->
+                                    <div class="step" id="ind-step-3">
+                                        <h5>Étape 3 : Valeur des Cours</h5>
+                                        <div class="form-group">
+                                            <label>État de vétusté (envet):</label>
+                                            <input type="number" step="0.1" min="0" max="1" name="cours_envet" class="form-control" value="1" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Catégorie:</label>
+                                            <select name="cours_categorie" class="form-control" required>
+                                                <option value="1">1</option>
+                                                <option value="2">2</option>
+                                                <option value="3">3</option>
+                                                <option value="4">4</option>
+                                            </select>
+                                        </div>
+                                        <button type="button" class="btn btn-secondary prev">Précédent</button>
+                                        <button type="button" class="btn btn-primary next">Suivant</button>
+                                    </div>
+                                    <!-- Étape 4 : Dépendances -->
+                                    <div class="step" id="ind-step-4">
+                                        <h5>Étape 4 : Valeur des Dépendances</h5>
+                                        <div class="form-group">
+                                            <label>État de vétusté (envet):</label>
+                                            <input type="number" step="0.1" min="0" max="1" name="dependances_envet" class="form-control" value="1" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Type de barème:</label>
+                                            <select name="dependances_type_bareme" class="form-control type-bareme" required>
+                                                <option value="collectif">Collectif</option>
+                                                <option value="individuel">Individuel</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Catégorie:</label>
+                                            <select name="dependances_categorie" class="form-control categorie" required></select>
+                                        </div>
+                                        <button type="button" class="btn btn-secondary prev">Précédent</button>
+                                        <button type="button" class="btn btn-primary next">Suivant</button>
+                                    </div>
+                                    <!-- Étape 5 : Aménagements -->
+                                    <div class="step" id="ind-step-5">
+                                        <h5>Étape 5 : Valeur des Aménagements</h5>
+                                        <p>Aucune saisie supplémentaire requise.</p>
+                                        <button type="button" class="btn btn-secondary prev">Précédent</button>
+                                        <button type="button" class="btn btn-primary next">Suivant</button>
+                                    </div>
+                                    <!-- Étape 6 : Terrains -->
+                                    <div class="step" id="ind-step-6">
+                                        <h5>Étape 6 : Valeur des Terrains</h5>
+                                        <p>Aucune saisie supplémentaire requise.</p>
+                                        <button type="button" class="btn btn-secondary prev">Précédent</button>
+                                        <button type="submit" class="btn btn-success" data-step="6" data-intro="Cliquez sur 'Évaluer' pour soumettre vos données et générer le rapport.">
+                                            Évaluer
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="street-view-container">
+                                <div id="location-view" class="location-view" data-step="4" data-intro="Cette petite carte montre la position exacte de la parcelle."></div>
+                                <img id="street-view-image" class="street-view-image" src="" alt="Street View" data-step="5" data-intro="Ici, vous pouvez voir une image Street View de la parcelle (si disponible).">
+                            </div>
+                        </div>
+
+                        <script>
+                            // Fonctions pour gérer les cookies
+                            function setCookie(name, value, days) {
+                                let expires = "";
+                                if (days) {
+                                    const date = new Date();
+                                    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                                    expires = "; expires=" + date.toUTCString();
+                                }
+                                document.cookie = name + "=" + (value || "") + expires + "; path=/";
+                            }
+
+                            function getCookie(name) {
+                                const nameEQ = name + "=";
+                                const ca = document.cookie.split(';');
+                                for (let i = 0; i < ca.length; i++) {
+                                    let c = ca[i];
+                                    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                                    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+                                }
+                                return null;
+                            }
+
+                            // Gestion du formulaire d'upload
+                            document.getElementById('upload-form').onsubmit = function (e) {
+                                e.preventDefault();
+                                const formData = new FormData(this);
+                                fetch('{% url "upload_geojson_eval" %}', {
+                                    method: 'POST',
+                                    body: formData,
+                                    headers: {
+                                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                                    }
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.geojson) {
+                                        geojsonLayer = L.geoJSON(data.geojson, {
+                                            style: {
+                                                color: "#3388ff",
+                                                weight: 2,
+                                                opacity: 0.8
+                                            },
+                                            onEachFeature: function (feature, layer) {
+                                                layer.on('click', function (e) {
+                                                    openEvaluationPopup(feature.properties.nicad, e.latlng);
+                                                });
+                                            }
+                                        }).addTo(map);
+                                        map.fitBounds(geojsonLayer.getBounds());
+                                    } else {
+                                        alert(data.error || "Une erreur est survenue.");
+                                    }
+                                })
+                                .catch(err => console.error("Erreur lors du téléversement :", err));
+                            };
+
+                            // Gestion du bouton Street View
+                            document.getElementById('export').addEventListener('click', function(e) {
+                                e.preventDefault();
+                                const button = this;
+                                button.disabled = true;
+                                button.textContent = 'Génération en cours...';
+
+                                fetch("{% url 'generate_street_view' %}", {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRFToken': '{{ csrf_token }}',
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({})
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    button.disabled = false;
+                                    button.textContent = 'Street View';
+
+                                    const resultsDiv = document.getElementById('street-view-results');
+                                    if (data.status === 'success') {
+                                        resultsDiv.innerHTML = '<h5>Images générées :</h5>';
+                                        data.images.forEach(image => {
+                                            resultsDiv.innerHTML += `
+                                                <div>
+                                                    <p>Parcelle: ${image.nicad}</p>
+                                                    <img src="${image.image_url}" alt="Street View" style="max-width: 300px;">
+                                                    <p><a href="${image.street_view_url}" target="_blank">Lien Street View</a></p>
+                                                </div>
+                                                <hr>
+                                            `;
+                                        });
+                                    } else {
+                                        resultsDiv.innerHTML = `<p style="color: red;">Erreur : ${data.error}</p>`;
+                                    }
+                                })
+                                .catch(error => {
+                                    button.disabled = false;
+                                    button.textContent = 'Street View';
+                                    document.getElementById('street-view-results').innerHTML = `<p style="color: red;">Erreur : ${error}</p>`;
+                                });
+                            });
+
+                            // Gestion du popup d'évaluation individuelle
+                            const popup = document.getElementById('evaluation-popup');
+                            const closePopup = document.getElementById('close-popup');
+                            const steps = popup.querySelectorAll('.step');
+                            const nextButtons = popup.querySelectorAll('.next');
+                            const prevButtons = popup.querySelectorAll('.prev');
+                            let currentStep = 0;
+
+                            function openEvaluationPopup(nicad, latlng) {
+                                document.getElementById('popup-nicad').textContent = nicad;
+                                popup.style.display = 'block';
+                                currentStep = 0;
+                                showStep(currentStep);
+
+                                // Charger l'image Street View
+                                const imagePath = `/media/street_view_images/parcelle_${nicad}.png`;
+                                document.getElementById('street-view-image').src = imagePath;
+
+                                // Charger la petite fenêtre Street View pour la localisation
+                                const locationView = L.map('location-view').setView([latlng.lat, latlng.lng], 18);
+                                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                                }).addTo(locationView);
+                                L.marker([latlng.lat, latlng.lng]).addTo(locationView);
+
+                                // Lancer le tutoriel si c'est la première fois
+                                const tutorialSeen = getCookie('individualEvalTutorialSeen');
+                                console.log('Valeur de individualEvalTutorialSeen :', tutorialSeen);
+                                if (!tutorialSeen) {
+                                    console.log('Tutoriel devrait démarrer');
+
+                                    const step1 = document.querySelector('[data-step="1"]');
+                                    const step2 = document.querySelector('[data-step="2"]');
+                                    const step3 = document.querySelector('[data-step="3"]');
+                                    const step4 = document.querySelector('[data-step="4"]');
+                                    const step5 = document.querySelector('[data-step="5"]');
+                                    const step6 = document.querySelector('[data-step="6"]');
+                                    console.log('Éléments trouvés :', { step1, step2, step3, step4, step5, step6 });
+
+                                    introJs().setOptions({
+                                        steps: [
+                                            { element: step1, intro: "Bienvenue dans l'évaluation individuelle ! Vous allez évaluer une parcelle spécifique en plusieurs étapes." },
+                                            { element: step2, intro: "Étape 1 : Saisissez les informations sur les locaux, comme l'état de vétusté et la catégorie." },
+                                            { element: step3, intro: "Cliquez sur 'Suivant' pour passer à l'étape suivante." },
+                                            { element: step4, intro: "Cette petite carte montre la position exacte de la parcelle." },
+                                            { element: step5, intro: "Ici, vous pouvez voir une image Street View de la parcelle (si disponible)." },
+                                            { element: step6, intro: "Cliquez sur 'Évaluer' pour soumettre vos données et générer le rapport." }
+                                        ],
+                                        showProgress: true,
+                                        showBullets: false,
+                                        exitOnOverlayClick: false,
+                                        doneLabel: 'Terminer'
+                                    }).start();
+
+                                    setCookie('individualEvalTutorialSeen', 'true', 365);
+                                } else {
+                                    console.log('Tutoriel ignoré : cookie déjà défini');
+                                }
+                            }
+
+                            closePopup.addEventListener('click', () => {
+                                popup.style.display = 'none';
+                            });
+
+                            function showStep(stepIndex) {
+                                steps.forEach((step, index) => {
+                                    step.classList.toggle('active', index === stepIndex);
+                                });
+                            }
+
+                            nextButtons.forEach(button => {
+                                button.addEventListener('click', () => {
+                                    if (currentStep < steps.length - 1) {
+                                        currentStep++;
+                                        showStep(currentStep);
+                                    }
+                                });
+                            });
+
+                            prevButtons.forEach(button => {
+                                button.addEventListener('click', () => {
+                                    if (currentStep > 0) {
+                                        currentStep--;
+                                        showStep(currentStep);
+                                    }
+                                });
+                            });
+
+                            // Gestion dynamique des catégories selon le type de barème
+                            const categories = {
+                                collectif: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'],
+                                individuel: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
+                            };
+
+                            function updateCategories(typeBaremeSelect, categorieSelect) {
+                                const typeBareme = typeBaremeSelect.value;
+                                const options = categories[typeBareme] || [];
+                                categorieSelect.innerHTML = '';
+                                options.forEach(cat => {
+                                    const option = document.createElement('option');
+                                    option.value = cat;
+                                    option.text = cat;
+                                    categorieSelect.appendChild(option);
+                                });
+                            }
+
+                            const typeBaremeSelects = document.querySelectorAll('.type-bareme');
+                            typeBaremeSelects.forEach(select => {
+                                const categorieSelect = select.parentElement.nextElementSibling.querySelector('.categorie');
+                                updateCategories(select, categorieSelect);
+                                select.addEventListener('change', () => updateCategories(select, categorieSelect));
+                            });
+
+                            // Soumission du formulaire
+                            document.getElementById('individual-multi-step-form').addEventListener('submit', function(e) {
+                                e.preventDefault();
+
+                                Swal.fire({
+                                    title: 'Évaluation en cours...',
+                                    text: 'Veuillez patienter pendant que nous évaluons',
+                                    allowOutsideClick: false,
+                                    didOpen: () => {
+                                        Swal.showLoading();
+                                    }
+                                });
+
+                                const formData = new FormData(this);
+                                formData.append('nicad', document.getElementById('popup-nicad').textContent);
+
+                                fetch('{% url "generate_individual_report" %}', {
+                                    method: 'POST',
+                                    body: formData,
+                                    headers: {
+                                        'X-CSRFToken': '{{ csrf_token }}'
+                                    }
+                                })
+                                .then(response => {
+                                    if (!response.ok) {
+                                        throw new Error('Erreur réseau ou serveur');
+                                    }
+                                    return response.blob();
+                                })
+                                .then(blob => {
+                                    Swal.close();
+
+                                    const url = window.URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `rapport_${document.getElementById('popup-nicad').textContent}.pdf`;
+                                    a.click();
+                                    window.URL.revokeObjectURL(url);
+                                    popup.style.display = 'none';
+
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: 'Évaluation terminée !',
+                                        text: 'Le rapport a été généré et téléchargé avec succès.',
+                                        timer: 2000,
+                                        showConfirmButton: false
+                                    });
+                                })
+                                .catch(error => {
+                                    Swal.close();
+
+                                    console.error('Erreur lors de la génération du rapport :', error);
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Erreur',
+                                        text: 'Une erreur est survenue lors de la génération du rapport. Veuillez réessayer.'
+                                    });
+                                });
+                            });
+                        </script>
+
+                        <div class="accordion" id="layer_manager_gee">
+                            <div id="loading_gee" style="display: none;">
+                                <div class="spinner-border text-secondary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingOne">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                        Map Control
+                                    </button>
+                                </h2>
+                                <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
+                                    <div class="accordion-body">
+                                        <div>
+                                            <div class="p-2 mt-3 outer-tabs">
+                                                <ul class="m-0 nav nav-fill nav-justified nav-tabs" id="gee_tab_list" role="tablist">
+                                                    <li class="nav-item" role="presentation">
+                                                        <button class="active nav-link p-0" id="layers-tab" data-bs-toggle="tab" data-bs-target="#layers" type="button" role="tab" aria-controls="layers" aria-selected="true">
+                                                            Layers
+                                                        </button>
+                                                    </li>
+                                                    <li class="nav-item" role="presentation">
+                                                        <button class="nav-link p-0" id="profile-tab" data-bs-toggle="tab" data-bs-target="#basemaps_gee" type="button" role="tab" aria-controls="basemaps_gee" aria-selected="false">
+                                                            Basemaps
+                                                        </button>
+                                                    </li>
+                                                    <li class="nav-item" role="presentation">
+                                                        <button class="nav-link p-0" id="legends_gee-tab" data-bs-toggle="tab" data-bs-target="#legends_gee" type="button" role="tab" aria-controls="legends_gee" aria-selected="false">
+                                                            Legends
+                                                        </button>
+                                                    </li>
+                                                </ul>
+                                                <div class="border-grey bg-white tab-content" id="layer_tab_content_gee">
+                                                    <div class="tab-pane active pt-2" id="layers" role="tabpanel" aria-labelledby="layers-tab">
+                                                        <p>
+                                                            <label class="form-check-label w-75" for="collection">
+                                                                <input class="form-check-input" id="collection" type="checkbox"/>Image Collection Layer
+                                                            </label>
+                                                            <a role="button" class="float-right" href="#" data-bs-toggle="popover" title="Image Collection Info" data-bs-trigger="focus" data-bs-content="Use this space to offer a description of the dataset. For this template we are using a standard GEE image collection. This is defined in the file filename.ext">
+                                                                <i class="fa-solid fa-circle-info ml-2 info_btn"></i>
+                                                            </a>
+                                                        </p>
+                                                        <input id="opacity_collection" type="range" max="1" min="0" step="0.01" style="display: none;"/>
+                                                        <label class="ml-1" id="collection_opacity"></label>
+                                                        <p>
+                                                            <label class="form-check-label w-75" for="asset">
+                                                                <input class="form-check-input" id="asset" type="checkbox"/>Public GEE User Asset
+                                                            </label>
+                                                            <a role="button" class="float-right" href="#" data-bs-toggle="popover" data-bs-trigger="focus" title="User Asset Info" data-bs-content="Precipitation factor for carbon monitoring estimations. For this template we are using a GEE User Asset that is exposed publicly. This is defined in the file filename.ext">
+                                                                <i class="fa-solid fa-circle-info ml-2 info_btn"></i>
+                                                            </a>
+                                                        </p>
+                                                        <input id="opacity_asset" type="range" max="1" min="0" step="0.01" style="display: none;'"/>
+                                                        <label class="ml-1" id="asset_opacity"></label>
+                                                    </div>
+                                                    <div class="tab-pane h-100 pt-2" id="basemaps_gee" role="tabpanel" aria-labelledby="basemaps_gee-tab">
+                                                        <div class="h-100 text-center">
+                                                            <div class="pos d-block">
+                                                                <div class="map-thumb">
+                                                                    <a id="osm" href="#" onclick="add_basemap(this.id);">
+                                                                        <img src="{% static 'images/basemaps/osm.png' %}" alt="img1" class="img-thumbnail">
+                                                                    </a>
+                                                                </div>
+                                                                <div class="map-thumb">
+                                                                    <a id="topo" href="#" onclick="add_basemap(this.id);">
+                                                                        <img src="{% static 'images/basemaps/topo.png' %}" alt="img1" class="img-thumbnail">
+                                                                    </a>
+                                                                </div>
+                                                                <div class="map-thumb">
+                                                                    <a id="gsatellite" href="#" onclick="add_basemap(this.id);">
+                                                                        <img src="{% static 'images/basemaps/gsatellite.png' %}" alt="img1" class="img-thumbnail">
+                                                                    </a>
+                                                                </div>
+                                                                <div class="map-thumb">
+                                                                    <a id="satellite" href="#" onclick="add_basemap(this.id);">
+                                                                        <img src="{% static 'images/basemaps/satellite.png' %}" alt="img1" class="img-thumbnail">
+                                                                    </a>
+                                                                </div>
+                                                                <div class="map-thumb">
+                                                                    <a id="terrain" href="#" onclick="add_basemap(this.id);">
+                                                                        <img src="{% static 'images/basemaps/terrain.png' %}" alt="img1" class="img-thumbnail">
+                                                                    </a>
+                                                                </div>
+                                                                <div class="map-thumb">
+                                                                    <a id="delorme" href="#" onclick="add_basemap(this.id);">
+                                                                        <img src="{% static 'images/basemaps/delorme.png' %}" alt="img1" class="img-thumbnail">
+                                                                    </a>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="tab-pane pl-3" id="legends_gee" role="tabpanel" aria-labelledby="legends_gee-tab">
+                                                        <p class="mt-1"></p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <script src="{% static '/js/map_from_GEE.js' %}"></script>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">A propos</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-left">
+                            Cliquez sur le bouton "Téléverser un fichier GeoJSON" pour importer les données de vos parcelles.
+                            Une fois le fichier chargé, les parcelles apparaîtront sur une carte interactive.
+                            <hr>
+                            Parcourez la carte et cliquez sur la parcelle que vous souhaitez évaluer.
+                            Un popup d’évaluation individuelle s’ouvrira, affichant le NICAD de la parcelle et une image statique Street View (si disponible).
+                            <hr>
+                            Utilisez les boutons "Suivant" et "Précédent" pour naviguer entre les étapes.
+                            Assurez-vous que tous les champs obligatoires sont remplis avant de passer à l’étape suivante.
+                            <a href="">[link]</a>.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#geeModal">
+                    Learn how to modify this page
+                </button>
+            </div>
+        </div>
+        <br>
+    </div>
+{% endblock %}

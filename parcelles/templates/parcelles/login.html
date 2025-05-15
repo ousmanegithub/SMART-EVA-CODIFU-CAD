@@ -1,0 +1,45 @@
+
+{% extends "parcelles/app_base.html" %}
+  {% load static %}
+{% block title %}Login{% endblock %}
+{% block script %}
+    <title>Connexion</title>
+  <link href="{% static '/css/style.css' %}" rel="stylesheet">
+{% endblock %}
+{% block content %}
+<body>
+    <div class="wrapper">
+        <form method="post">
+            {% csrf_token %}
+            <h2>Connexion</h2>
+            {% if messages %}
+                {% for message in messages %}
+                    <div style="color: #fff; text-align: center; margin-bottom: 20px;">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            <div class="input-field">
+                <input type="text" name="username" required>
+                <label>Entrez votre nom d'utilisateur</label>
+            </div>
+            <div class="input-field">
+                <input type="password" name="password" required>
+                <label>Entrez votre mot de passe</label>
+            </div>
+            <div class="forget">
+                <label for="remember">
+                    <input type="checkbox" id="remember" name="remember">
+                    <p>Se souvenir de moi</p>
+                </label>
+                <a href="#">Mot de passe oublié ?</a>
+            </div>
+            <button type="submit">Se connecter</button>
+            <div class="register">
+                <p>Pas de compte ? <a href="{% url 'register' %}">S'inscrire</a></p>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
+{% endblock %}

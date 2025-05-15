@@ -1,0 +1,57 @@
+/* styles specific to about page */
+.team-member {
+    height: 150px;
+    border-radius: 50%;
+}
+
+.org-logo {
+    height: 100px;
+}
+
+.member-wrap {
+    display: flex;
+}
+
+.member-image {
+    width: unset;
+    margin-bottom: 10px;
+}
+
+.member-image img {
+    border-radius: 10px;
+}
+
+.member-details {
+    flex-grow: 1;
+    margin: 0 15px;
+}
+
+.team-name {
+    font-weight: bold;
+}
+
+.team-biography {
+    height: 100%;
+    overflow-y: auto;
+    max-height: calc(100vh - 250px);
+}
+
+.pointer {
+    cursor: pointer;
+}
+
+@media screen and (max-width: 800px) {
+    .member-wrap {
+        display: block;
+    }
+
+    .member-details, .member-image, .member-image img {
+        float: unset;
+        width: 100%;
+    }
+
+    .member-details img {
+        flex-grow: unset;
+        width: 100%;
+    }
+}

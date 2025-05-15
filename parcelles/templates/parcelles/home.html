@@ -1,0 +1,105 @@
+{% extends "parcelles/app_base.html" %}
+{% load static %}
+
+{% block title %}Home{% endblock %}
+{% block script %}
+    <!-- Custom styles-->
+
+    <!-- Custom scripts-->
+{% endblock %}
+
+<!-- Begin Page Content -->
+{% block content %}
+    <div class="align-items-center justify-content-between bg-gray-300">
+        <div style="position: relative;">
+            <!-- Hero image in the home page -->
+            <!-- If there an image that represents the tool/organization, please update the src in the <img> below -->
+            <div>
+                <img
+                        class="img-fluid hero_style"
+                        src="{% static '/images/hero-bg-1.jpg' %}"
+                        alt="Hero Image"
+                >
+                <div class="layer">
+                </div>
+                <div class="card-img-overlay ">
+                    <div class="text-center text-white vertical_center">
+                        <!-- Title on the hero image-->
+                        <p id="title_class">
+                            Bienvenue Dans la plateforme de Generation de CODIFU et d'Evaluation </p>
+                        <!-- Tagline under the title on the hero image-->
+                        <p id="tagline_class">
+                            Un outil développé par la Direction du Cadastre pour simplifier la gestion des données foncières, l’évaluation cadastrale et la génération de codes CODIFU au Sénégal.
+                            Conçu pour les agents de la DGID et du cadastre, il permet de centraliser les informations sur les parcelles, d’évaluer leurs caractéristiques (locaux, terrains, aménagements)
+                            selon des critères précis, et de générer automatiquement des identifiants uniques BDN pour une identification rapide et fiable dans la base nationale.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Search bar -->
+        <!-- Search results are based on the title on the cards shown -->
+        <div class="container-fluid">
+            <div class="mt-4 form-outline">
+                <input type="search" id="searchBox" class="form-control" placeholder="Search for the app here..."
+                       aria-label="Search"/>
+            </div>
+
+            <!-- Application Template Cards -->
+            <!-- Looping through the list of cards to generate the interface that contains all the cards. This list can be updated in views.py -->
+            <div class="row flex_cards">
+
+                {% for app_card in app_cards %}
+
+                    <div class="app-card mb-4">
+                        <br>
+                        <div class="card shadow mb-4 mr-4 h-100 img-thumbnail">
+                            <div class="card-header py-3">
+                                <h6 class="m-0 font-weight-bold text-primary">{{ app_card.name }}</h6>
+                            </div>
+                            <div class="card-body card_bg"
+                                 style="background-image: url('{{ app_card.background_image_url }}')">
+                                <div class="text-center">
+                                    <a href='{{ app_card.url }}' class="stretched-link"></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+
+                <!-- Description of the website -->
+                <!-- The description can be updated in the <p> tags below -->
+                <div class="row">`
+                    <div class="col-lg-12 mb-4">
+                        <br>
+                        <div class="card shadow">
+                            <div class="card-header py-3">
+                                <h6 class="m-0 font-weight-bold text-primary">Description</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="text-center">
+                                </div>
+                                <p>L’Application de Génération de Code BDN est une solution numérique développée par la Direction du Cadastre,
+                                    en partenariat avec la Direction Générale des Impôts et des Domaines (DGID),
+                                    pour répondre aux besoins de gestion et d’évaluation des données foncières au Sénégal. Cet outil a été conçu pour simplifier et accélérer les processus cadastraux,
+                                    tout en garantissant une traçabilité et une fiabilité accrues des informations.</p>
+                                <p>Generer les codes BDN et Effectuer l'evaluation des parcelles individuel ou collectivement.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <button type="button" class="btn btn-info" data-bs-toggle="modal"
+                        data-bs-target="#homeModal">
+                    Learn how to modify this page
+                </button>
+            </div>
+            <br>
+        </div>
+    </div>
+    <!-- End of Main Content -->
+
+    <script src="{% static '/js/home.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'css/home.css' %}">
+
+{% endblock %}

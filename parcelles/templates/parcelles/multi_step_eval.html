@@ -1,0 +1,517 @@
+{% extends "parcelles/app_base.html" %}
+{% load static %}
+
+{% block title %}Évaluation Multi-Étapes{% endblock %}
+
+{% block script %}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://cdn.jsdelivr.net/npm/intro.js@7.0.1/introjs.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/intro.js@7.0.1/intro.min.js"></script>
+    <style>
+        .step {
+            display: none;
+        }
+        .step.active {
+            display: block;
+        }
+        .card-body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+            padding: 20px;
+        }
+        #multi-step-form {
+            width: 100%;
+            max-width: 600px;
+            margin: 20px auto 0;
+        }
+        .form-group {
+            width: 100%;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .btn {
+            margin: 10px 5px;
+        }
+        .container-fluid {
+            background-image: url("{% static 'images/hero-bg-1.jpg' %}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+
+            padding-top: 0px; /* Ajuster selon la hauteur de votre navbar */
+        }
+        .card {
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* Styles pour la barre de progression */
+        *, *:after, *:before {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Open Sans", sans-serif;
+        }
+        .progress {
+            width: 100%;
+            max-width: 600px;
+            margin: 20px auto;
+            text-align: center;
+            padding-bottom: 40px;
+            position: relative;
+            z-index: 1;
+        }
+        .progress .circle,
+        .progress .bar {
+            display: inline-block;
+            background: #fff;
+            width: 40px;
+            height: 40px;
+            border-radius: 40px;
+            border: 1px solid #d5d5da;
+        }
+        .progress .bar {
+            position: relative;
+            width: 80px;
+            height: 6px;
+            top: -33px;
+            margin-left: -5px;
+            margin-right: -5px;
+            border-left: none;
+            border-right: none;
+            border-radius: 0;
+            z-index: 2;
+        }
+        .progress .circle .label {
+            display: inline-block;
+            width: 32px;
+            height: 32px;
+            line-height: 32px;
+            border-radius: 32px;
+            margin-top: 3px;
+            color: #b5b5ba;
+            font-size: 17px;
+        }
+        .progress .circle .title {
+            color: #b5b5ba;
+            font-size: 13px;
+            line-height: 30px;
+            margin-left: -5px;
+        }
+        .progress .bar.done,
+        .progress .circle.done {
+            background: #eee;
+        }
+        .progress .bar.active {
+            background: linear-gradient(to right, #EEE 40%, #FFF 60%);
+        }
+        .progress .circle.done .label {
+            color: #FFF;
+            background: #8bc435;
+            box-shadow: inset 0 0 2px rgba(0,0,0,.2);
+        }
+        .progress .circle.done .title {
+            color: #444;
+        }
+        .progress .circle.active .label {
+            color: #FFF;
+            background: #0c95be;
+            box-shadow: inset 0 0 2px rgba(0,0,0,.2);
+        }
+        .progress .circle.active .title {
+            color: #0c95be;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid bg-gray-300">
+        <div class="row">
+            <div class="col-lg-12 mb-4">
+                <div class="card shadow">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary" data-step="1" data-intro="Bienvenue dans l'évaluation multi-étapes ! Cette section vous permet de configurer les paramètres pour générer un rapport d'évaluation cadastrale.">
+                            Évaluation Multi-Étapes
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+                        <div class="progress mb-4" data-step="2" data-intro="Cette barre de progression indique votre avancement dans les étapes du formulaire.">
+                            <div class="circle active" data-step-index="1">
+                                <span class="label">1</span>
+                                <span class="title">Locaux</span>
+                            </div>
+                            <span class="bar"></span>
+                            <div class="circle" data-step-index="2">
+                                <span class="label">2</span>
+                                <span class="title">Clôtures</span>
+                            </div>
+                            <span class="bar"></span>
+                            <div class="circle" data-step-index="3">
+                                <span class="label">3</span>
+                                <span class="title">Cours</span>
+                            </div>
+                            <span class="bar"></span>
+                            <div class="circle" data-step-index="4">
+                                <span class="label">4</span>
+                                <span class="title">Dépendances</span>
+                            </div>
+                            <span class="bar"></span>
+                            <div class="circle" data-step-index="5">
+                                <span class="label">5</span>
+                                <span class="title">Aménagements</span>
+                            </div>
+                            <span class="bar"></span>
+                            <div class="circle" data-step-index="6">
+                                <span class="label">6</span>
+                                <span class="title">Terrains</span>
+                            </div>
+                        </div>
+
+                        <form id="multi-step-form" method="post" action="{% url 'generate_multi_step_report' %}">
+                            {% csrf_token %}
+
+                            <div class="step" id="step-1">
+                                <h4 data-step="3" data-intro="Étape 1 : Saisissez les informations sur les locaux, comme l'état de vétusté et la catégorie.">
+                                    Étape 1 : Valeur des Locaux
+                                </h4>
+                                <div class="form-group">
+                                    <label for="locaux_envet">État de vétusté (envet):</label>
+                                    <input type="number" step="0.1" min="0" max="1" name="locaux_envet" id="locaux_envet" class="form-control" value="1" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="locaux_vois">Coefficient de voisinage (vois):</label>
+                                    <input type="number" step="0.1" min="0" max="1" name="locaux_vois" id="locaux_vois" class="form-control" value="1" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="locaux_aban">Coefficient d'abbatement (aban):</label>
+                                    <input type="number" step="0.1" min="0.5" max="1" name="locaux_aban" id="locaux_aban" class="form-control" value="0" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="locaux_type_bareme">Type de barème:</label>
+                                    <select name="locaux_type_bareme" id="locaux_type_bareme" class="form-control" required>
+                                        <option value="collectif">Collectif</option>
+                                        <option value="individuel">Individuel</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="locaux_categorie">Catégorie:</label>
+                                    <select name="locaux_categorie" id="locaux_categorie" class="form-control" required>
+                                    </select>
+                                </div>
+                                <button type="button" class="btn btn-primary next" data-step="4" data-intro="Cliquez sur 'Suivant' pour passer à l'étape suivante.">
+                                    Suivant
+                                </button>
+                            </div>
+
+                            <div class="step" id="step-2">
+                                <h4 data-step="5" data-intro="Étape 2 : Saisissez les informations sur les clôtures, comme leur état de vétusté et leur catégorie.">
+                                    Étape 2 : Valeur des Clôtures
+                                </h4>
+                                <div class="form-group">
+                                    <label for="clotures_envet">État de vétusté (envet):</label>
+                                    <input type="number" step="0.1" min="0" max="1" name="clotures_envet" id="clotures_envet" class="form-control" value="1" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="clotures_categorie">Catégorie:</label>
+                                    <select name="clotures_categorie" id="clotures_categorie" class="form-control" required>
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5</option>
+                                        <option value="6">6</option>
+                                        <option value="7">7</option>
+                                    </select>
+                                </div>
+                                <button type="button" class="btn btn-secondary prev">Précédent</button>
+                                <button type="button" class="btn btn-primary next">Suivant</button>
+                            </div>
+
+                            <div class="step" id="step-3">
+                                <h4>Étape 3 : Valeur des Cours</h4>
+                                <div class="form-group">
+                                    <label for="cours_envet">État de vétusté (envet):</label>
+                                    <input type="number" step="0.1" min="0" max="1" name="cours_envet" id="cours_envet" class="form-control" value="1" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="cours_categorie">Catégorie:</label>
+                                    <select name="cours_categorie" id="cours_categorie" class="form-control" required>
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                    </select>
+                                </div>
+                                <button type="button" class="btn btn-secondary prev">Précédent</button>
+                                <button type="button" class="btn btn-primary next">Suivant</button>
+                            </div>
+
+                            <div class="step" id="step-4">
+                                <h4>Étape 4 : Valeur des Dépendances</h4>
+                                <div class="form-group">
+                                    <label for="dependances_envet">État de vétusté (envet):</label>
+                                    <input type="number" step="0.1" min="0" max="1" name="dependances_envet" id="dependances_envet" class="form-control" value="1" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="dependances_type_bareme">Type de barème:</label>
+                                    <select name="dependances_type_bareme" id="dependances_type_bareme" class="form-control" required>
+                                        <option value="collectif">Collectif</option>
+                                        <option value="individuel">Individuel</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="dependances_categorie">Catégorie:</label>
+                                    <select name="dependances_categorie" id="dependances_categorie" class="form-control" required>
+                                    </select>
+                                </div>
+                                <button type="button" class="btn btn-secondary prev">Précédent</button>
+                                <button type="button" class="btn btn-primary next">Suivant</button>
+                            </div>
+
+                            <div class="step" id="step-5">
+                                <h4>Étape 5 : Valeur des Aménagements</h4>
+                                <p>Aucune saisie supplémentaire requise pour cette étape.</p>
+                                <button type="button" class="btn btn-secondary prev">Précédent</button>
+                                <button type="button" class="btn btn-primary next">Suivant</button>
+                            </div>
+
+                            <div class="step" id="step-6">
+                                <h4>Étape 6 : Valeur des Terrains</h4>
+                                <p>Aucune saisie supplémentaire requise pour cette étape.</p>
+                                <button type="button" class="btn btn-secondary prev">Précédent</button>
+                                <button type="submit" class="btn btn-success" data-step="6" data-intro="Cliquez sur 'Générer le Rapport' pour soumettre vos données et générer le rapport final.">
+                                    Générer le Rapport
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function setCookie(name, value, days) {
+            let expires = "";
+            if (days) {
+                const date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + (value || "") + expires + "; path=/";
+        }
+
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+            }
+            return null;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                const tutorialSeen = getCookie('multiStepTutorialSeen');
+                console.log('Valeur de multiStepTutorialSeen :', tutorialSeen);
+                if (!tutorialSeen) {
+                    console.log('Tutoriel devrait démarrer');
+
+                    const step1 = document.querySelector('[data-step="1"]');
+                    const step2 = document.querySelector('[data-step="2"]');
+                    const step3 = document.querySelector('[data-step="3"]');
+                    const step4 = document.querySelector('[data-step="4"]');
+                    const step5 = document.querySelector('[data-step="5"]');
+                    const step6 = document.querySelector('[data-step="6"]');
+                    console.log('Éléments trouvés :', { step1, step2, step3, step4, step5, step6 });
+
+                    introJs().setOptions({
+                        steps: [
+                            { element: step1, intro: "Bienvenue dans l'évaluation multi-étapes ! Cette section vous permet de configurer les paramètres pour générer un rapport d'évaluation cadastrale." },
+                            { element: step2, intro: "Cette barre de progression indique votre avancement dans les étapes du formulaire." },
+                            { element: step3, intro: "Étape 1 : Saisissez les informations sur les locaux, comme l'état de vétusté et la catégorie." },
+                            { element: step4, intro: "Cliquez sur 'Suivant' pour passer à l'étape suivante." },
+                            { element: step5, intro: "Étape 2 : Saisissez les informations sur les clôtures, comme leur état de vétusté et leur catégorie." },
+                            { element: step6, intro: "Cliquez sur 'Générer le Rapport' pour soumettre vos données et générer le rapport final." }
+                        ],
+                        showProgress: true,
+                        showBullets: false,
+                        exitOnOverlayClick: false,
+                        doneLabel: 'Terminer'
+                    }).start();
+
+                    setCookie('multiStepTutorialSeen', 'true', 365);
+                } else {
+                    console.log('Tutoriel ignoré : cookie déjà défini');
+                }
+            }, 500);
+        });
+
+        const categories = {
+            collectif: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'],
+            individuel: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
+        };
+
+        function updateCategories(typeBaremeSelect, categorieSelect) {
+            const typeBareme = typeBaremeSelect.value;
+            const options = categories[typeBareme] || [];
+            categorieSelect.innerHTML = '';
+            options.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.text = cat;
+                categorieSelect.appendChild(option);
+            });
+        }
+
+        const steps = document.querySelectorAll('.step');
+        const nextButtons = document.querySelectorAll('.next');
+        const prevButtons = document.querySelectorAll('.prev');
+        const progressCircles = document.querySelectorAll('.progress .circle');
+        const progressBars = document.querySelectorAll('.progress .bar');
+        let currentStep = 0;
+
+        function showStep(stepIndex) {
+            steps.forEach((step, index) => {
+                step.classList.toggle('active', index === stepIndex);
+            });
+
+            progressCircles.forEach(circle => {
+                circle.classList.remove('active', 'done');
+                circle.querySelector('.label').innerHTML = circle.querySelector('.label').dataset.originalLabel || circle.querySelector('.label').innerHTML;
+            });
+            progressBars.forEach(bar => {
+                bar.classList.remove('active', 'done');
+            });
+
+            progressCircles.forEach((circle, index) => {
+                const circleStep = parseInt(circle.getAttribute('data-step-index'));
+                if (circleStep <= stepIndex + 1) {
+                    circle.classList.add('done');
+                    circle.querySelector('.label').innerHTML = '✓';
+                }
+                if (circleStep === stepIndex + 1) {
+                    circle.classList.add('active');
+                    circle.classList.remove('done');
+                    circle.querySelector('.label').innerHTML = circleStep;
+                }
+            });
+
+            progressBars.forEach((bar, index) => {
+                const barStep = index + 1;
+                if (barStep < stepIndex + 1) {
+                    bar.classList.add('done');
+                } else if (barStep === stepIndex + 1) {
+                    bar.classList.add('active');
+                }
+            });
+        }
+
+        nextButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                if (currentStep < steps.length - 1) {
+                    currentStep++;
+                    showStep(currentStep);
+                }
+            });
+        });
+
+        prevButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                if (currentStep > 0) {
+                    currentStep--;
+                    showStep(currentStep);
+                }
+            });
+        });
+
+        const locauxTypeBareme = document.getElementById('locaux_type_bareme');
+        const locauxCategorie = document.getElementById('locaux_categorie');
+        const dependancesTypeBareme = document.getElementById('dependances_type_bareme');
+        const dependancesCategorie = document.getElementById('dependances_categorie');
+
+        updateCategories(locauxTypeBareme, locauxCategorie);
+        updateCategories(dependancesTypeBareme, dependancesCategorie);
+
+        locauxTypeBareme.addEventListener('change', () => updateCategories(locauxTypeBareme, locauxCategorie));
+        dependancesTypeBareme.addEventListener('change', () => updateCategories(dependancesTypeBareme, dependancesCategorie));
+
+        document.querySelectorAll('.progress .circle .label').forEach(label => {
+            label.dataset.originalLabel = label.innerHTML;
+        });
+
+        showStep(currentStep);
+    </script>
+
+    <script>
+        document.getElementById('multi-step-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            Swal.fire({
+                title: 'Évaluation en masse en cours...',
+                text: 'Veuillez patienter pendant que nous évaluons',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            const formData = new FormData(this);
+
+            fetch('{% url "generate_multi_step_report" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erreur réseau ou serveur');
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                Swal.close();
+
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'Rapport_Evaluation_Complete.zip';
+                a.click();
+                window.URL.revokeObjectURL(url);
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Évaluation en masse terminée !',
+                    text: 'Le rapport a été généré et téléchargé avec succès.',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            })
+            .catch(error => {
+                Swal.close();
+
+                console.error('Erreur lors de la génération du rapport :', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erreur',
+                    text: 'Une erreur est survenue lors de la génération du rapport. Veuillez réessayer.'
+                });
+            });
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscription</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <div class="wrapper">
+        <form method="post">
+            {% csrf_token %}
+            <h2>Inscription</h2>
+            {% if messages %}
+                {% for message in messages %}
+                    <div style="color: #fff; text-align: center; margin-bottom: 20px;">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            <div class="input-field">
+                <input type="text" name="username" required>
+                <label>Entrez votre nom d'utilisateur</label>
+            </div>
+            <div class="input-field">
+                <input type="password" name="password1" required>
+                <label>Entrez votre mot de passe</label>
+            </div>
+            <div class="input-field">
+                <input type="password" name="password2" required>
+                <label>Confirmez votre mot de passe</label>
+            </div>
+            <button type="submit">S'inscrire</button>
+            <div class="register">
+                <p>Déjà un compte ? <a href="{% url 'login' %}">Se connecter</a></p>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

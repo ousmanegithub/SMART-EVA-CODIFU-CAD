@@ -1,0 +1,233 @@
+{% extends "parcelles/app_base.html" %}
+{% load static %}
+
+{% block title %}CODE BDN- Map{% endblock %}
+
+{% block script %}
+    <!-- Custom styles-->
+    <!-- Custom scripts-->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/leaflet-timedimension@1.1.1/dist/leaflet.timedimension.control.min.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.2/dist/leaflet.css"
+          integrity="sha256-sA+zWATbFveLLNqWO2gtiw3HL/lh1giY/Inf1BJ0z14=" crossorigin=""/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/leaflet@1.9.2/dist/leaflet.js"
+            integrity="sha256-o9N1jGDZrf5tS+Ft4gbIK7mYMipq9lqpVJ91xHSyKhg=" crossorigin=""></script>
+    <script src="https://unpkg.com/esri-leaflet@3.0.8/dist/esri-leaflet.js"
+            integrity="sha512-E0DKVahIg0p1UHR2Kf9NX7x7TUewJb30mxkxEm2qOYTVJObgsAGpEol9F6iK6oefCbkJiA4/i6fnTHzM6H1kEA=="
+            crossorigin=""></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/iso8601-js-period@0.2.1/iso8601.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{% static 'js/basemaps.js' %}"></script>
+    <style>
+        html {
+            overflow: auto !important; /* Remplace overflow: hidden pour cette page */
+        }
+    </style>
+
+
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid bg-gray-300">
+
+        <!-- Select AOI -->
+        <!-- Allow the user to draw a polygon and download GEOJSON file for the same -->
+
+        <div class="row">
+            <div class="col-xl-12 col-lg-12">
+                <div class="card mb-4 mt-4 shadow">
+                    <!-- Card Header -->
+                    <div
+                            class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                        <h6 class="m-0 font-weight-bold text-primary">CODE BDN Map Viewer</h6>
+                    </div>
+                    <!-- Card Body -->
+                    <div class="card-body">
+
+                    <!--    <link rel="stylesheet" href="{% static 'css/common.css' %}">
+                        <button id="generate-bdn" class="btn btn-success mt-3">Générer les Codes BDN</button>
+                        <a id="download-file" class="btn btn-info mt-3" style="display:none;">Télécharger le fichier enrichi</a>
+                        -->
+
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <form id="generate-bdn-form" method="post" action="{% url 'generate_bdn_codes' %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-warning">Générer les Codes BDN</button>
+                            </form>
+
+                            <a href="{% url 'view_generated_data' %}" class="btn btn-info">Visualiser les Données Générées</a>
+                        </div>
+
+
+                        <div id="processing-message" style="display: none; margin-top: 10px;"></div>
+                        <a id="download-geojson" class="btn btn-info mt-3" style="display:none;">Télécharger le fichier enrichi</a>
+
+                        <script>
+                            document.getElementById("generate-bdn").addEventListener("click", function () {
+                                fetch("{% url 'generate_bdn_codes' %}", {
+                                    method: "POST",
+                                    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.gpkg_file) {
+                                        const link = document.getElementById("download-file");
+                                        link.href = `/${data.gpkg_file}`;
+                                        link.style.display = "block";
+                                    }
+                                })
+                                .catch(err => console.error("Erreur :", err));
+                            });
+                        </script>
+
+                        <br>
+
+                        <div id="map_aoi">
+
+
+                        </div>
+
+                        <form id="upload-form" method="post" enctype="multipart/form-data" action="">
+                            {% csrf_token %}
+                            <input type="file" name="file" accept=".geojson,.shp,.zip,.csv">
+                            <button type="submit" class="btn btn-primary btn-custom-orange">Importer</button>
+                        </form>
+                        <br>
+                        <button id="export" class="btn btn-primary btn-custom-orange text-center" >Download the GEOJSON</button><label class="ml-2">Telecharger le fichier Geojson Enrichie ICI.</label>
+                        <br>
+                        <br>
+                         <button id="download-qr-zip" class="btn btn-primary btn-custom-orange text-center" >Download QR CODES</button><label class="ml-2">Telecharger le dossier Zip contenant les Qrcodes.</label>
+                        <script>
+                            document.getElementById('upload-form').onsubmit = function (e) {
+                                e.preventDefault();
+                                const formData = new FormData(this);
+                                fetch('{% url "upload_geojson" %}', {
+                                    method: 'POST',
+                                    body: formData,
+                                    headers: {
+                                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                                    }
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.geojson) {
+                                        const geojsonLayer = L.geoJSON(data.geojson, {
+                                            style: {
+                                                color: "#3388ff",
+                                                weight: 2,
+                                                opacity: 0.8
+                                            },
+                                            onEachFeature: function (feature, layer) {
+                                                let properties = feature.properties || {};
+                                                let keys = Object.keys(properties);
+                                                let midIndex = Math.ceil(keys.length / 2);
+
+                                                let part1 = keys.slice(0, midIndex).map(key => `<b>${key}:</b> ${properties[key]}<br>`).join('');
+                                                let part2 = keys.slice(midIndex).map(key => `<b>${key}:</b> ${properties[key]}<br>`).join('');
+
+                                                let popupContent = `
+                                                    <div id="popup-content" class="popup-container">
+                                                        <div id="popup-part1" class="popup-part">${part1}</div>
+                                                        <div id="popup-part2" class="popup-part" style="display: none;">${part2}</div>
+                                                        <button onclick="switchPopupPart()" id="popup-btn" class="popup-btn">Suivant</button>
+                                                    </div>
+                                                `;
+
+                                                layer.bindPopup(popupContent);
+
+                                                layer.on("mouseover", function () {
+                                                    this.setStyle({
+                                                        color: "yellow",
+                                                        weight: 3,
+                                                        opacity: 1
+                                                    });
+                                                });
+
+                                                layer.on("mouseout", function () {
+                                                    this.setStyle({
+                                                        color: "#3388ff",
+                                                        weight: 2,
+                                                        opacity: 0.8
+                                                    });
+                                                });
+                                            }
+                                        }).addTo(map);
+
+                                        map.fitBounds(geojsonLayer.getBounds());
+                                    } else {
+                                        alert(data.error || "Une erreur est survenue.");
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error("Erreur lors du téléversement :", err);
+                                });
+                            };
+
+                            var map = L.map('map_aoi').setView([42.35, -71.08], 3);
+                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                maxZoom: 19
+                            }).addTo(map);
+
+                            function switchPopupPart() {
+                                let part1 = document.getElementById("popup-part1");
+                                let part2 = document.getElementById("popup-part2");
+                                let button = document.getElementById("popup-btn");
+
+                                if (part1.style.display === "none") {
+                                    part1.style.display = "block";
+                                    part2.style.display = "none";
+                                    button.innerText = "Suivant";
+                                } else {
+                                    part1.style.display = "none";
+                                    part2.style.display = "block";
+                                    button.innerText = "Précédent";
+                                }
+                            }
+
+
+
+                        </script>
+                    </div>
+                    <div>
+
+
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-lg-12 mb-4">
+                <div class="card shadow">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">A propos</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-left text-dark">
+                            Televerser votre fichier de parcelle. Please verifier le format, le format accepter ici est le Geojson. Puis clic sur Importer
+                            <hr>
+                            Please clic sur 'Download the GEOJSON' pour telecharger le fichier Geojson Enrechi
+                            .
+                            <hr>
+                            Please clic sur 'Download QR CODES' pour telecharger le Dossier Zip des Qr Codes
+                            .
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col mb-4">
+                <button type="button" class="btn btn-info" data-bs-toggle="modal"
+                        data-bs-target="#aoiModal">
+                    Learn how to modify this page
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="{% static '/css/common.css' %}">
+    <script src="{% static 'js/select_aoi.js' %}"></script>
+
+{% endblock %}
