@@ -51,6 +51,7 @@ from .utils import process_geodataframe, generate_qr_codes
 from django.urls import reverse
 from django.templatetags.static import static
 
+import logging
 def map_view(request):
     return render(request, 'parcelles/map.html')
 
@@ -120,6 +121,8 @@ def eval_view(request):
                   )
 def multi_step_eval_view(request):
     return render(request, 'parcelles/multi_step_eval.html')
+def multi_step_eval_view_local(request):
+    return render(request, 'parcelles/multi_step_eval_local.html')
 
 
 TEMP_FILE_PATH = os.path.join('media', 'temp_uploaded_file.geojson')
@@ -152,10 +155,8 @@ def upload_geojson(request):
     return JsonResponse({'error': 'Requête invalide.'}, status=400)
 
 
-
-
-
 TEMP_FILE_PATH_EVAL = os.path.join('media/upload', 'temp_uploaded_file_EVAL.geojson')
+
 
 @csrf_exempt
 def upload_geojson_eval(request):
@@ -169,26 +170,98 @@ def upload_geojson_eval(request):
             if 'features' not in data or not data['features']:
                 return JsonResponse({'error': 'Le fichier GeoJSON est vide ou invalide.'}, status=400)
 
+            # Nettoyer les géométries invalides
+            cleaned_features = []
+            for feature in data['features']:
+                if feature['geometry']['type'] != 'Polygon':
+                    continue  # Ignorer les géométries non-Polygon
+                coords = feature['geometry']['coordinates']
+                if not coords or not isinstance(coords, list):
+                    continue
+                outer_ring = coords[0]
+                # Vérifier si l'anneau a au moins 4 points et est fermé
+                if len(outer_ring) < 4:
+                    continue
+                # Fermer l'anneau si nécessaire
+                if outer_ring[0] != outer_ring[-1]:
+                    outer_ring.append(outer_ring[0])
+                cleaned_features.append(feature)
+
+            data['features'] = cleaned_features
+            if not data['features']:
+                return JsonResponse({'error': 'Aucune géométrie valide après nettoyage.'}, status=400)
+
             os.makedirs('media/upload', exist_ok=True)
             with open(TEMP_FILE_PATH_EVAL, 'w', encoding='utf-8') as temp_file:
                 json.dump(data, temp_file, ensure_ascii=False, indent=4)
-            """
-            gdf = gpd.GeoDataFrame.from_features(data["features"])
-            gdf = validate_gdf(gdf)
-            gdf["centroid"] = gdf.geometry.centroid
-            gdf["latitude"] = gdf["centroid"].y
-            gdf["longitude"] = gdf["centroid"].x
 
-            # Charger les routes
-            roads = ox.graph_to_gdfs(ox.graph_from_point((gdf["latitude"].mean(), gdf["longitude"].mean()), dist=500, network_type='drive'), nodes=False, edges=True)
-
-            # Générer les images Street View
-            image_paths = process_street_view(gdf, roads)
-            """
-            return JsonResponse({'geojson': data, """'image_paths': image_paths,""" 'message': 'Import et capture réussis.'}, status=200)
+            return JsonResponse({
+                'geojson': data,
+                'message': 'Import et capture réussis.'
+            }, status=200)
 
         except Exception as e:
             return JsonResponse({'error': f"Erreur : {str(e)}"}, status=400)
+
+    elif request.method == 'GET':
+        try:
+            if not os.path.exists(TEMP_FILE_PATH_EVAL):
+                return JsonResponse({'error': 'Aucun fichier GeoJSON importé.'}, status=400)
+
+            with open(TEMP_FILE_PATH_EVAL, 'r', encoding='utf-8') as temp_file:
+                data = json.load(temp_file)
+
+            return JsonResponse({
+                'geojson': data
+            }, status=200)
+
+        except Exception as e:
+            return JsonResponse({'error': f"Erreur lors de la lecture du fichier : {str(e)}"}, status=400)
+
+    return JsonResponse({'error': 'Méthode non autorisée.'}, status=405)
+
+TEMP_FILE_PATH_LOCAL = os.path.join('media/upload', 'temp_uploaded_local.geojson')
+
+@csrf_exempt
+def upload_geojson_local(request):
+    if request.method == 'POST':
+        try:
+            file = request.FILES.get('local_file')
+            if not file:
+                return JsonResponse({'error': 'Aucun fichier fourni pour la couche local.'}, status=400)
+
+            data = json.load(file)
+            if 'features' not in data or not data['features']:
+                return JsonResponse({'error': 'Le fichier GeoJSON local est vide ou invalide.'}, status=400)
+
+            os.makedirs('media/upload', exist_ok=True)
+            with open(TEMP_FILE_PATH_LOCAL, 'w', encoding='utf-8') as temp_file:
+                json.dump(data, temp_file, ensure_ascii=False, indent=4)
+
+            return JsonResponse({
+                'local_geojson': data,
+                'message': 'Import de la couche local réussi.'
+            }, status=200)
+
+        except Exception as e:
+            return JsonResponse({'error': f"Erreur : {str(e)}"}, status=400)
+
+    elif request.method == 'GET':
+        try:
+            if not os.path.exists(TEMP_FILE_PATH_LOCAL):
+                return JsonResponse({'error': 'Aucun fichier GeoJSON local importé.'}, status=400)
+
+            with open(TEMP_FILE_PATH_LOCAL, 'r', encoding='utf-8') as temp_file:
+                data = json.load(temp_file)
+
+            return JsonResponse({
+                'local_geojson': data
+            }, status=200)
+
+        except Exception as e:
+            return JsonResponse({'error': f"Erreur lors de la lecture du fichier local : {str(e)}"}, status=400)
+
+    return JsonResponse({'error': 'Méthode non autorisée.'}, status=405)
 
 @csrf_exempt
 def generate_street_view(request):
@@ -378,6 +451,197 @@ def generate_multi_step_report(request):
         except Exception as e:
             return JsonResponse({'error': f"Erreur lors de la génération du rapport : {str(e)}"}, status=400)
     return JsonResponse({'error': 'Méthode non autorisée.'}, status=405)
+
+
+
+
+
+
+
+logger = logging.getLogger(__name__)
+
+@csrf_exempt
+def generate_multi_step_report_local(request):
+    if request.method == "POST":
+        try:
+            logger.info("Requête POST reçue pour generate_multi_step_report_local")
+
+            # Vérifier l'existence des fichiers GeoJSON
+            if not os.path.exists(TEMP_FILE_PATH_EVAL) or not os.path.exists(TEMP_FILE_PATH_LOCAL):
+                logger.error("Fichiers GeoJSON manquants : TEMP_FILE_PATH_EVAL=%s, TEMP_FILE_PATH_LOCAL=%s", TEMP_FILE_PATH_EVAL, TEMP_FILE_PATH_LOCAL)
+                return JsonResponse({'error': 'Fichiers GeoJSON manquants (parcelles ou local).'}, status=400)
+
+            # Récupérer les nicad filtrés depuis la requête
+            filtered_nicads_json = request.POST.get('filtered_nicads', '[]')
+            logger.info("filtered_nicads_json reçu : %s", filtered_nicads_json)
+            try:
+                filtered_nicads = json.loads(filtered_nicads_json)
+            except json.JSONDecodeError as e:
+                logger.error("Erreur lors du décodage de filtered_nicads_json : %s", str(e))
+                return JsonResponse({'error': 'Les données filtered_nicads sont invalides.'}, status=400)
+
+            if not filtered_nicads:
+                logger.warning("Aucun nicad filtré fourni")
+                return JsonResponse({'error': 'Aucune parcelle sélectionnée pour l\'évaluation.'}, status=400)
+
+            # Charger le GeoDataFrame des parcelles et filtrer selon les nicad
+            logger.info("Chargement du fichier GeoJSON : %s", TEMP_FILE_PATH_EVAL)
+            gdf = gpd.read_file(TEMP_FILE_PATH_EVAL)
+            logger.info("Filtrage des parcelles avec nicad : %s", filtered_nicads)
+            gdf = gdf[gdf['nicad'].isin(filtered_nicads)]
+            if gdf.empty:
+                logger.warning("Aucune parcelle correspondante trouvée après filtrage")
+                return JsonResponse({'error': 'Aucune parcelle correspondante trouvée.'}, status=400)
+
+            region = request.POST.get('region', 'DAKAR')
+            for col in ['Prix_au_m', 'Superficie', 'assise', 'Surfaced', 'lr', 'sr', 'niveaux']:
+                if col in gdf.columns:
+                    gdf[col] = pd.to_numeric(gdf[col], errors='coerce').fillna(0)
+
+            processed_gdf = process_geodataframe(gdf)
+            qr_output_folder = os.path.join(settings.MEDIA_ROOT, 'qr_codes')
+            processed_gdf = generate_qr_codes(processed_gdf, qr_output_folder)
+
+            street_view_excel = os.path.join(settings.MEDIA_ROOT, 'street_view_links.xlsx')
+            street_view_dict = {}
+            if os.path.exists(street_view_excel):
+                df = pd.read_excel(street_view_excel)
+                df['nicad_no_zeros'] = df['nicad'].astype(str).str.lstrip('0')
+                street_view_dict = df.set_index('nicad_no_zeros')['street_view_url'].to_dict()
+
+            locaux_envet = float(request.POST.get('locaux_envet', 1))
+            locaux_vois = float(request.POST.get('locaux_vois', 1))
+            locaux_aban = float(request.POST.get('locaux_aban', 0))
+            locaux_type_bareme = request.POST.get('locaux_type_bareme')
+            locaux_categorie = request.POST.get('locaux_categorie')
+            gdf['envet'] = locaux_envet
+            gdf['vois'] = locaux_vois
+            gdf['aban'] = locaux_aban
+            locaux = calculer_valeur_locaux(gdf, region, locaux_type_bareme, locaux_categorie)
+            locaux_data = pd.DataFrame(locaux)
+
+            clotures_envet = float(request.POST.get('clotures_envet', 1))
+            clotures_categorie = request.POST.get('clotures_categorie')
+            gdf['envet'] = clotures_envet
+            clotures = calculer_valeur_clotures(gdf, region, clotures_categorie)
+
+            cours_envet = float(request.POST.get('cours_envet', 1))
+            cours_categorie = request.POST.get('cours_categorie')
+            gdf['envet'] = cours_envet
+            cours = calculer_valeur_cours(gdf, region, cours_categorie)
+
+            dependances_envet = float(request.POST.get('dependances_envet', 1))
+            dependances_type_bareme = request.POST.get('dependances_type_bareme')
+            dependances_categorie = request.POST.get('dependances_categorie')
+            gdf['envet'] = dependances_envet
+            dependances = calculer_valeur_dependances(gdf, region, dependances_type_bareme, dependances_categorie)
+
+            amenagements = calculer_valeur_amenagements(gdf, region)
+            terrains = calculer_valeur_terrains(gdf, region)
+
+            all_data = pd.DataFrame(locaux + clotures + cours + dependances + terrains + amenagements)
+            logger.info("Contenu de all_data avant pivot_table: %s", all_data.to_dict(orient='records'))
+            total_values_pivot = all_data.pivot_table(index='nicad', columns='Type', values='Valeur',
+                                                      aggfunc='sum').reset_index()
+            logger.info("Colonnes dans total_values_pivot après pivot_table: %s", total_values_pivot.columns.tolist())
+            total_values_pivot.fillna(0, inplace=True)
+
+            # Forcer l'inclusion de toutes les colonnes attendues
+            columns_to_sum = ['Valeur totale des locaux (FCFA)', 'Valeur de la clôture (FCFA)',
+                              'Valeur de la cour (FCFA)', 'Valeur des dépendances (FCFA)',
+                              'Valeur du Sol (FCFA)', 'Valeur des aménagements particuliers (FCFA)']
+            for col in columns_to_sum:
+                if col not in total_values_pivot.columns:
+                    logger.warning("Colonne manquante dans total_values_pivot: %s, ajout avec valeur 0", col)
+                    total_values_pivot[col] = 0
+            total_values_pivot['Valeur totale (FCFA)'] = total_values_pivot[columns_to_sum].sum(axis=1)
+
+            total_values_pivot['Taux'] = total_values_pivot.apply(
+                lambda row: locaux_data[locaux_data['nicad'] == row['nicad']]['Taux Locatif'].iloc[0] if row['nicad'] in locaux_data['nicad'].values else 0.10, axis=1)
+            total_values_pivot['Valeur locative (FCFA)'] = total_values_pivot['Valeur totale (FCFA)'] * total_values_pivot['Taux']
+            total_values_pivot['CFPB'] = total_values_pivot['Valeur locative (FCFA)'] * 0.05
+
+            for column in columns_to_sum + ['Valeur totale (FCFA)', 'Valeur locative (FCFA)', 'CFPB']:
+                total_values_pivot[column] = total_values_pivot[column].apply(lambda x: round(x, 2))
+
+            excel_path = os.path.join(settings.MEDIA_ROOT, 'Rapport_Evaluation_Multi_Etapes_local.xlsx')
+            total_values_pivot.to_excel(excel_path, index=False)
+
+            pdf_folder = os.path.join(settings.MEDIA_ROOT, 'pdf_reports')
+            pdf_paths = []
+            for _, row in total_values_pivot.iterrows():
+                nicad = row['nicad']
+                parcelle = gdf[gdf['nicad'] == nicad].copy()
+                if parcelle.empty:
+                    continue
+
+                parcelle_projected = parcelle.to_crs(epsg=32628)
+                assise = float(parcelle['assise'].iloc[0])
+                niveaux = float(parcelle['niveaux'].iloc[0])
+                superficie = float(parcelle['Superficie'].iloc[0])
+                prix_au_m = float(parcelle['Prix_au_m'].iloc[0])
+                lr = float(parcelle['lr'].iloc[0])
+                sr = float(parcelle['Sr'].iloc[0])
+
+                code_bdn = processed_gdf.loc[processed_gdf['nicad'] == nicad, 'CodeBDN'].iloc[0]
+                qr_code_path = processed_gdf.loc[processed_gdf['nicad'] == nicad, 'QRCode'].iloc[0]
+
+                nicad_no_zeros = str(nicad).lstrip('0')
+                street_view_url = street_view_dict.get(nicad_no_zeros, "Non disponible")
+
+                data = {
+                    "Catégorie": locaux_categorie,
+                    "Superficie Totale bâtie (en m²)": f"{assise * niveaux:.2f}",
+                    "Valeur Totale des locaux (FCFA)": f"{row.get('Valeur totale des locaux (FCFA)', 0):.2f}",
+                    "Barème (en FCFA le m²)": f"{prix_au_m:.2f}",
+                    "Surface terrain non bâti (en m²)": f"{superficie - assise:.2f}",
+                    "Surface terrain bâti (en m²)": f"{assise:.2f}",
+                    "Valeur du sol (FCFA)": f"{row.get('Valeur du Sol (FCFA)', 0):.2f}",
+                    "Valeur des aménagements particuliers (FCFA)": f"{row.get('Valeur des aménagements particuliers (FCFA)', 0):.2f}",
+                    "Longueur de la clôture (en m)": f"{lr:.2f}",
+                    "Valeur de la clôture (en FCFA)": f"{row.get('Valeur de la clôture (FCFA)', 0):.2f}",
+                    "Surface des cours (en m²)": f"{sr:.2f}",
+                    "Valeur des cours (en FCFA)": f"{row.get('Valeur de la cour (FCFA)', 0):.2f}",
+                    "Valeur des dépendances (en FCFA)": f"{row.get('Valeur des dépendances (FCFA)', 0):.2f}",
+                    "Valeur totale de l’immeuble (FCFA)": f"{row['Valeur totale (FCFA)']:.2f}",
+                    "Valeur locative (FCFA)": f"{row['Valeur locative (FCFA)']:.2f}",
+                    "Taux appliqué": f"{row['Taux']:.2%}",
+                    "CFPB": f"{row['CFPB']:.2f}",
+                    "Propriétaire": parcelle.get('proprietaire', pd.Series(['Non spécifié'])).iloc[0],
+                    "CNI": parcelle.get('cni', pd.Series(['Non spécifié'])).iloc[0],
+                    "Titre": parcelle.get('titre', pd.Series(['Non spécifié'])).iloc[0],
+                    "Lot": parcelle.get('lot', pd.Series(['Non spécifié'])).iloc[0],
+                    "Niveau": f"{int(niveaux)}",
+                    "Usage": parcelle.get('usage', pd.Series(['Non spécifié'])).iloc[0],
+                    "Superficie Terrain (en m²)": f"{superficie:.2f}",
+                    "Téléphone": parcelle.get('telephone', pd.Series(['Non spécifié'])).iloc[0],
+                    "Email": parcelle.get('email', pd.Series(['Non spécifié'])).iloc[0],
+                    "NINEA": parcelle.get('ninea', pd.Series(['Non spécifié'])).iloc[0],
+                    "Infos complémentaires": parcelle.get('infos_complementaires', pd.Series(['Non spécifié'])).iloc[0],
+                    "latitude": parcelle_projected.geometry.centroid.y.iloc[0],
+                    "longitude": parcelle_projected.geometry.centroid.x.iloc[0],
+                    "CodeBDN": code_bdn,
+                    "QRCode": qr_code_path
+                }
+
+                image_path = os.path.join(settings.MEDIA_ROOT, 'street_view_images', f'parcelle_{nicad}.png')
+                pdf_path = generate_pdf_report(nicad, data, image_path if os.path.exists(image_path) else None, street_view_url)
+                pdf_paths.append(pdf_path)
+
+            zip_path = os.path.join(settings.MEDIA_ROOT, 'Rapport_Evaluation_Complete_local.zip')
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                zipf.write(excel_path, os.path.basename(excel_path))
+                for pdf_path in pdf_paths:
+                    zipf.write(pdf_path, os.path.join('pdf_reports', os.path.basename(pdf_path)))
+
+            response = FileResponse(open(zip_path, 'rb'), as_attachment=True, filename='Rapport_Evaluation_Complete_local.zip')
+            return response
+
+        except Exception as e:
+            logger.error("Erreur lors de la génération du rapport : %s", str(e))
+            return JsonResponse({'error': f"Erreur lors de la génération du rapport : {str(e)}"}, status=400)
+    return JsonResponse({'error': 'Méthode non autorisée.'}, status=405)
+
 
 
 """ def simplify_geometry(geom):

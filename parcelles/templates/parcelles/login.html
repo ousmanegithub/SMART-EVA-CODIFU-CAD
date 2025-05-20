@@ -1,45 +1,74 @@
-
-{% extends "parcelles/app_base.html" %}
-  {% load static %}
-{% block title %}Login{% endblock %}
-{% block script %}
-    <title>Connexion</title>
-  <link href="{% static '/css/style.css' %}" rel="stylesheet">
-{% endblock %}
-{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <!-- Google Fonts Link For Icons -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@48,400,0,0">
+    <!-- Load static files -->
+    {% load static %}
+    <link href="{% static '/css/style_login.css' %}" rel="stylesheet">
+    <script src="{% static '/js/script_login.js' %}" defer></script>
+</head>
 <body>
-    <div class="wrapper">
-        <form method="post">
-            {% csrf_token %}
-            <h2>Connexion</h2>
-            {% if messages %}
-                {% for message in messages %}
-                    <div style="color: #fff; text-align: center; margin-bottom: 20px;">
-                        {{ message }}
+    <!-- Custom Navigation Bar -->
+    <nav class="custom-navbar">
+        <button class="login-btn">LOG IN</button>
+        <div class="navbar-right">
+            <a href="//www.dgid.sn//" class="logo-link">
+                <img src="{% static "images/LOGO-DGID-WEB.png" %}" width="110" height="50" alt="Logo DGID">
+            </a>
+            <h2 class="navbar-title">SMART-EVA PLATEFORME</h2>
+        </div>
+    </nav>
+
+    <div class="blur-bg-overlay"></div>
+    <div class="form-popup">
+        <span class="close-btn material-symbols-rounded">close</span>
+        <div class="form-box login">
+            <div class="form-details">
+                <h2>BIENVENUE</h2>
+                <h3>Veillez cliquer sur le bouton LOG IN et saisir les information de connexion pour vous connecter</h3>
+            </div>
+            <div class="form-content">
+                <h2>LOGIN</h2>
+                <form method="post">
+                    {% csrf_token %}
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div style="color: #fff; text-align: center; margin-bottom: 20px;">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    <div class="input-field">
+                        <input type="text" name="username" required>
+                        <label>Username</label>
                     </div>
-                {% endfor %}
-            {% endif %}
-            <div class="input-field">
-                <input type="text" name="username" required>
-                <label>Entrez votre nom d'utilisateur</label>
+                    <div class="input-field">
+                        <input type="password" name="password" required>
+                        <label>Password</label>
+                    </div>
+                    <a href="#" class="forgot-pass-link">Forgot password?</a>
+                    <button type="submit">Log In</button>
+                </form>
+                <div class="bottom-link">
+                    Don't have an account?
+                    <a href="{% url 'register' %}" id="signup-link">Signup</a>
+                </div>
             </div>
-            <div class="input-field">
-                <input type="password" name="password" required>
-                <label>Entrez votre mot de passe</label>
-            </div>
-            <div class="forget">
-                <label for="remember">
-                    <input type="checkbox" id="remember" name="remember">
-                    <p>Se souvenir de moi</p>
-                </label>
-                <a href="#">Mot de passe oublié ?</a>
-            </div>
-            <button type="submit">Se connecter</button>
-            <div class="register">
-                <p>Pas de compte ? <a href="{% url 'register' %}">S'inscrire</a></p>
-            </div>
-        </form>
+        </div>
     </div>
+
+    <!-- Footer -->
+    <footer class="custom-footer">
+        <div class="footer-content">
+            <a href="//www.dgid.sn//" class="logo-link">
+                <img src="{% static "images/LOGO-DGID-WEB.png" %}" width="110" height="50" alt="Logo DGID">
+            </a>
+            <h2 class="footer-title">SMART-EVA PLATEFORME</h2>
+        </div>
+    </footer>
 </body>
 </html>
-{% endblock %}

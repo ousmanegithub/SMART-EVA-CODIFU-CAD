@@ -42,7 +42,7 @@
                     <!-- Card Header -->
                     <div
                             class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                        <h6 class="m-0 font-weight-bold text-primary">CODE BDN Map Viewer</h6>
+                        <h6 class="m-0 font-weight-bold text-primary">CODE CODIFU Map Viewer</h6>
                     </div>
                     <!-- Card Body -->
                     <div class="card-body">
@@ -55,7 +55,7 @@
                         <div class="d-flex justify-content-between align-items-center mt-4">
                             <form id="generate-bdn-form" method="post" action="{% url 'generate_bdn_codes' %}">
                                 {% csrf_token %}
-                                <button type="submit" class="btn btn-warning">Générer les Codes BDN</button>
+                                <button type="submit" class="btn btn-warning">Générer les Codes CODIFU</button>
                             </form>
 
                             <a href="{% url 'view_generated_data' %}" class="btn btn-info">Visualiser les Données Générées</a>
@@ -219,10 +219,7 @@
                 </div>
             </div>
             <div class="col mb-4">
-                <button type="button" class="btn btn-info" data-bs-toggle="modal"
-                        data-bs-target="#aoiModal">
-                    Learn how to modify this page
-                </button>
+                
             </div>
         </div>
     </div>

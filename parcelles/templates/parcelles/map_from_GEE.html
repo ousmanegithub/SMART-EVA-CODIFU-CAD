@@ -75,6 +75,55 @@
         .step.active {
             display: block;
         }
+        .local-label {
+            background-color: rgba(255, 255, 255, 255); /* Fond blanc semi-transparent */
+            border: 1px solid #ff0000; /* Bordure rouge pour correspondre à la couche */
+            border-radius: 3px;
+            padding: 2px 5px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+        .leaflet-popup-content-wrapper {
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .leaflet-popup-content {
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .leaflet-popup-content h4 {
+            margin-top: 0;
+            color: #ff0000; /* Rouge pour correspondre à la couche local */
+            font-size: 16px;
+        }
+
+        .leaflet-popup-content p {
+            margin: 5px 0;
+        }
+
+        #nicadSearch {
+            border: 1px solid #ccc;
+            padding: 5px;
+            border-radius: 3px;
+        }
+
+        #nicadSearch.error {
+            border-color: red;
+        }
+
+        .error-message {
+            color: red;
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+
     </style>
 {% endblock %}
 
@@ -86,16 +135,28 @@
                 <div class="card shadow mb-4">
                     <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                         <h6 class="m-0 font-weight-bold text-primary">Evaluation Map Viewer</h6>
+                        <input type="text" id="nicadSearch" placeholder="Rechercher par NICAD" class="form-control mr-2" style="width: 200px;">
+
                         <a href="{% url 'multi_step_eval' %}" class="btn btn-info">Eval-masse</a>
                     </div>
                     <div class="card-body">
                         <link rel="stylesheet" href="{% static 'css/common.css' %}">
                         <div id="map2"></div>
+
                         <br>
                         <form id="upload-form" method="post" enctype="multipart/form-data" action="">
                             {% csrf_token %}
+                            <label for="geojson-upload_eval">Importer les parcelles :</label>
                             <input type="file" name="file" id="geojson-upload_eval" accept=".geojson,.shp,.zip,.csv">
+
                             <button type="submit" class="btn btn-primary btn-custom-orange">Importer</button>
+                        </form>
+                        <br>
+                        <form id="upload-local-form" method="post" enctype="multipart/form-data" action="">
+                            {% csrf_token %}
+                            <label for="geojson-upload_local">Importer un fichier de limite :</label>
+                            <input type="file" name="local_file" id="geojson-upload_local" accept=".geojson">
+                            <button type="submit" class="btn btn-primary btn-custom-orange">Importer Limite</button>
                         </form>
                         <br>
                         <a id="export" class="btn btn-primary btn-custom-orange text-center">Street View</a>
@@ -227,6 +288,95 @@
                             </div>
                         </div>
 
+
+                        <script >
+                            let localLayer = null;
+
+
+                            document.getElementById('upload-local-form').onsubmit = function (e) {
+                                e.preventDefault();
+                                const formData = new FormData(this);
+                                fetch('{% url "upload_geojson_local" %}', {
+                                    method: 'POST',
+                                    body: formData,
+                                    headers: {
+                                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                                    }
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.local_geojson) {
+                                        // Si une couche local existe déjà, la supprimer
+                                        if (localLayer) {
+                                            localLayer.remove();
+                                        }
+
+                                        // Ajouter la nouvelle couche local à la carte
+                                        localLayer = L.geoJSON(data.local_geojson, {
+                                            style: {
+                                                color: "#ff0000", // Couleur rouge pour la couche local
+                                                weight: 2,
+                                                opacity: 0.8
+                                            },
+                                            onEachFeature: function (feature, layer) {
+                                                // Vérifier si la propriété 'Nom' existe dans les propriétés du polygone
+                                                if (feature.properties && feature.properties.Nom) {
+                                                    // Ajouter une étiquette (tooltip) permanente avec le nom du polygone
+                                                    layer.bindTooltip(feature.properties.Nom, {
+                                                        permanent: true, // L'étiquette est toujours visible
+                                                        direction: 'center', // Positionnée au centre du polygone
+                                                        className: 'local-label' // Classe CSS pour personnaliser le style
+                                                    });
+                                                } else {
+                                                    // Si 'Nom' n'existe pas, afficher un message par défaut
+                                                    layer.bindTooltip('Nom non spécifié', {
+                                                        permanent: true,
+                                                        direction: 'center',
+                                                        className: 'local-label'
+                                                    });
+                                                }
+
+                                                // Ajouter un popup qui s'ouvre au clic sur le polygone ou son étiquette
+                                                const popupContent = `
+                                                    <div>
+                                                        <h4>Informations sur ${feature.properties.Nom || 'ce polygone'}</h4>
+                                                        <p><strong>Nom :</strong> ${feature.properties.Nom || 'Non spécifié'}</p>
+                                                        <p>Cliquez sur le bouton suivant pour évaluer toutes les parcelles se trouvant dans ${feature.properties.Nom || 'ce polygone'}.</p>
+                                                        <button id="eval-parcels-btn-${feature.properties.Nom || 'polygone-' + Math.random().toString(36).substr(2, 9)}" class="btn btn-primary evaluate-parcels-btn">Évaluer</button>
+                                                    </div>
+                                                `;
+                                                layer.bindPopup(popupContent, {
+                                                    maxWidth: 300 // Largeur maximale du popup
+                                                });
+
+                                                // Ajouter un événement au clic sur le bouton "Évaluer"
+                                                layer.on('popupopen', function () {
+                                                    const btn = document.getElementById(`eval-parcels-btn-${feature.properties.Nom || 'polygone-' + Math.random().toString(36).substr(2, 9)}`);
+                                                    if (btn) {
+                                                        btn.addEventListener('click', function () {
+                                                            // Stocker les coordonnées du polygone dans le localStorage pour les utiliser dans la page d'évaluation
+                                                            const polygonCoords = JSON.stringify(feature.geometry.coordinates);
+                                                            localStorage.setItem('selectedPolygon', polygonCoords);
+                                                            // Ouvre la page d'évaluation dans une nouvelle fenêtre
+                                                            window.open('{% url "multi_step_eval_local" %}', '_blank');
+                                                        });
+                                                    }
+                                                });
+                                            }
+                                        }).addTo(map);
+
+                                        // Zoomer sur la couche local
+                                        map.fitBounds(localLayer.getBounds());
+                                    } else {
+                                        alert(data.error || "Une erreur est survenue lors de l'importation de la couche local.");
+                                    }
+                                })
+                                .catch(err => console.error("Erreur lors du téléversement de la couche local :", err));
+                            };
+                        </script>
+
+
+
                         <script>
                             // Fonctions pour gérer les cookies
                             function setCookie(name, value, days) {
@@ -250,6 +400,10 @@
                                 return null;
                             }
 
+                            let geojsonLayer = null;
+                            let allNicads = [];
+                            let nicadCoordinates = {};
+
                             // Gestion du formulaire d'upload
                             document.getElementById('upload-form').onsubmit = function (e) {
                                 e.preventDefault();
@@ -264,6 +418,10 @@
                                 .then(response => response.json())
                                 .then(data => {
                                     if (data.geojson) {
+                                        // Réinitialiser les tableaux
+                                        allNicads = [];
+                                        nicadCoordinates = {};
+
                                         geojsonLayer = L.geoJSON(data.geojson, {
                                             style: {
                                                 color: "#3388ff",
@@ -271,6 +429,13 @@
                                                 opacity: 0.8
                                             },
                                             onEachFeature: function (feature, layer) {
+                                                if (feature.properties && feature.properties.nicad) {
+                                                    // Stocker le NICAD et ses coordonnées
+                                                    allNicads.push(feature.properties.nicad);
+                                                    const bounds = layer.getBounds();
+                                                    const center = bounds.getCenter();
+                                                    nicadCoordinates[feature.properties.nicad] = center;
+                                                }
                                                 layer.on('click', function (e) {
                                                     openEvaluationPopup(feature.properties.nicad, e.latlng);
                                                 });
@@ -281,7 +446,7 @@
                                         alert(data.error || "Une erreur est survenue.");
                                     }
                                 })
-                                .catch(err => console.error("Erreur lors du téléversement :", err));
+                                .catch(err => console.error("Erreur lors du téléversement :", err));
                             };
 
                             // Gestion du bouton Street View
@@ -500,7 +665,50 @@
                                     });
                                 });
                             });
+
                         </script>
+
+
+                        <script >
+                            function searchNicad() {
+                                const searchInput = document.getElementById('nicadSearch');
+
+                                if (!searchInput.value.trim()) {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Erreur',
+                                        text: 'Veuillez entrer un NICAD.',
+                                        confirmButtonText: 'OK'
+                                    });
+                                    searchInput.classList.add('error');
+                                    return;
+                                } else {
+                                    searchInput.classList.remove('error');
+                                }
+
+                                // Vérifier si le NICAD existe dans allNicads
+                                if (allNicads.includes(searchInput.value.trim())) {
+                                    const latlng = nicadCoordinates[searchInput.value.trim()];
+                                    openEvaluationPopup(searchInput.value.trim(), latlng);
+                                } else {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Erreur',
+                                        text: 'NICAD non trouvé. Veuillez vérifier et réessayer.',
+                                        confirmButtonText: 'OK'
+                                    });
+                                    searchInput.classList.add('error');
+                                }
+                            }
+
+                            // Ajouter un événement pour la touche Entrée
+                            document.getElementById('nicadSearch').addEventListener('keypress', function(e) {
+                                if (e.key === 'Enter') {
+                                    searchNicad();
+                                }
+                            });
+                        </script>
+
 
                         <div class="accordion" id="layer_manager_gee">
                             <div id="loading_gee" style="display: none;">
