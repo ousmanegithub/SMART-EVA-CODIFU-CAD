@@ -14,8 +14,8 @@ from pathlib import Path
 import os
 
 # Remplacez par le chemin exact vers gdal309.dll
-GDAL_LIBRARY_PATH = r"C:\OSGeo4W\bin\gdal309.dll"
-os.environ["GDAL_LIBRARY_PATH"] = GDAL_LIBRARY_PATH
+# GDAL_LIBRARY_PATH = r"C:\OSGeo4W\bin\gdal309.dll"
+# os.environ["GDAL_LIBRARY_PATH"] = GDAL_LIBRARY_PATH
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -103,16 +103,19 @@ WSGI_APPLICATION = 'code_bdn_project.wsgi.application'
 
 DATABASES = {
     'default': {
-        #"'ENGINE': 'django.db.backends.sqlite3',
-        #'NAME': BASE_DIR / 'db.sqlite3',
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'postgis_35_sample',
+        'NAME': 'postgis_35_sample',  # Cela peut changer sur Render
         'USER': 'postgres',
         'PASSWORD': 'passer',
         'HOST': 'localhost',
         'PORT': '5432',
     }
 }
+
+import dj_database_url
+DATABASE_URL = os.getenv('DATABASE_URL')
+if DATABASE_URL:
+    DATABASES['default'] = dj_database_url.parse(DATABASE_URL)
 
 """LOGGING = {
     'version': 1,
