@@ -18,6 +18,75 @@ $(function () {
 // Initialize with map control
     map = L.map('map2', {center: [42.35, -71.08], zoom: 3});
     osm.addTo(map);
+
+    map.addControl(search);
+    // Dépendances globales nécessaires pour SearchNicad
+    // Assure-toi que ces variables sont accessibles ici (elles sont définies dans eval.html)
+    if (typeof allNicads === 'undefined' || typeof nicadCoordinates === 'undefined' || typeof openEvaluationPopup === 'undefined') {
+        console.error("Les variables allNicads, nicadCoordinates ou la fonction openEvaluationPopup ne sont pas définies.");
+    }
+
+    // Contrôle Leaflet personnalisé pour la recherche par NICAD
+    L.Control.SearchNicad = L.Control.extend({
+        onAdd: function(map) {
+            const container = L.DomUtil.create('div', 'leaflet-control-search-nicad');
+            container.innerHTML = `
+                <input type="text" id="nicadSearch" placeholder="Rechercher par NICAD">
+                <button onclick="searchNicad()">Rechercher</button>
+                <div class="error-message" id="searchError">NICAD non trouvé. Veuillez vérifier et réessayer.</div>
+            `;
+
+            // Empêche la carte de réagir aux clics ou saisies dans le contrôle
+            L.DomEvent.disableClickPropagation(container);
+            container.querySelector('input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchNicad();
+                }
+            });
+
+            return container;
+        },
+
+        onRemove: function(map) {
+            // Rien à faire ici
+        }
+    });
+
+    L.control.searchNicad = function(opts) {
+        return new L.Control.SearchNicad(opts);
+    };
+
+    // Ajouter le contrôle à la carte (position topleft pour éviter conflit avec GeoSearch)
+    L.control.searchNicad({ position: 'topleft' }).addTo(map);
+
+    // Fonction pour gérer la recherche par NICAD
+    function searchNicad() {
+        const searchInput = document.getElementById('nicadSearch').value.trim();
+        const errorDiv = document.getElementById('searchError');
+
+        if (!searchInput) {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = 'Veuillez entrer un NICAD.';
+            return;
+        }
+
+        // Vérifier si le NICAD existe dans allNicads
+        if (allNicads.includes(searchInput)) {
+            errorDiv.style.display = 'none';
+            const latlng = nicadCoordinates[searchInput];
+            openEvaluationPopup(searchInput, latlng);
+
+            // Zoomer sur la parcelle
+            map.setView([latlng.lat, latlng.lng], 18);
+        } else {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = 'NICAD non trouvé. Veuillez vérifier et réessayer.';
+        }
+    }
+
+
+
+
     let gee_layer, user_layer;
 
 // when the checkbox for 'Image Collection Layer' is clicked, show/hide the layer
