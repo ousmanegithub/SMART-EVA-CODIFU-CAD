@@ -785,7 +785,7 @@ import pandas as pd
 import gc
 import logging
 
-def generate_qr_codes(parcellaire: gpd.GeoDataFrame, output_folder: str, batch_size=100):
+def generate_bdn_codes(parcellaire: gpd.GeoDataFrame, output_folder: str, batch_size=100):
     """
     Génère des QR codes pour chaque parcelle basée sur sa géolocalisation et enregistre les images.
     Traite les données par lots pour limiter l'utilisation de la mémoire.
