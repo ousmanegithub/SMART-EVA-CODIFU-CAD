@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 import os
 
+import dj_database_url
+
 # Remplacez par le chemin exact vers gdal309.dll
 # GDAL_LIBRARY_PATH = r"C:\OSGeo4W\bin\gdal309.dll"
 # os.environ["GDAL_LIBRARY_PATH"] = GDAL_LIBRARY_PATH
@@ -104,7 +106,7 @@ WSGI_APPLICATION = 'code_bdn_project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'postgis_35_sample',  # Cela peut changer sur Render
+        'NAME': 'postgis_35_sample',
         'USER': 'postgres',
         'PASSWORD': 'passer',
         'HOST': 'localhost',
@@ -112,10 +114,10 @@ DATABASES = {
     }
 }
 
-import dj_database_url
+# Override with DATABASE_URL for Render
 DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL:
-    DATABASES['default'] = dj_database_url.parse(DATABASE_URL)
+    DATABASES['default'] = dj_database_url.parse(DATABASE_URL, engine='django.contrib.gis.db.backends.postgis')
 
 """LOGGING = {
     'version': 1,
