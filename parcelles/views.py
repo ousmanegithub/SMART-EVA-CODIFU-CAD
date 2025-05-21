@@ -777,90 +777,82 @@ import pandas as pd
 import shutil
 from zipfile import ZipFile
 
+import qrcode
+import geopandas as gpd
+from pyproj import Transformer
+import os
+import pandas as pd
+import gc
+import logging
 
-@csrf_exempt
-def generate_bdn_codes(request):
-    if request.method != "POST":
-        return JsonResponse({
-            'alert': {
-                'type': 'error',
-                'message': 'Méthode non autorisée. Utilisez POST.'
-            }
-        }, status=405)
+def generate_qr_codes(parcellaire: gpd.GeoDataFrame, output_folder: str, batch_size=100):
+    """
+    Génère des QR codes pour chaque parcelle basée sur sa géolocalisation et enregistre les images.
+    Traite les données par lots pour limiter l'utilisation de la mémoire.
+    """
+    # Loguer la taille du GeoDataFrame pour diagnostic
+    logging.info(f"Nombre de parcelles à traiter : {len(parcellaire)}")
 
-    try:
-        # Vérifiez si le fichier temporaire existe
-        if not os.path.exists(TEMP_FILE_PATH):
-            return JsonResponse({
-                'alert': {
-                    'type': 'error',
-                    'message': 'Aucun fichier importé trouvé. Veuillez importer un fichier avant de générer les codes BDN.'
-                }
-            }, status=400)
+    # Transformer les coordonnées en EPSG:4326 (latitude, longitude)
+    transformer = Transformer.from_crs(parcellaire.crs, "EPSG:4326", always_xy=True)
+    parcellaire['centroid_lon'], parcellaire['centroid_lat'] = transformer.transform(
+        parcellaire['coord_x'], parcellaire['coord_y']
+    )
+    parcellaire['geo_uri'] = parcellaire.apply(
+        lambda row: f"geo:{row['centroid_lat']},{row['centroid_lon']}", axis=1
+    )
 
-        # Chargez le fichier temporaire
-        gdf = gpd.read_file(TEMP_FILE_PATH)
+    # Créer le dossier de sortie s'il n'existe pas
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
 
-        # Traitement de gdf
-        processed_gdf = process_geodataframe(gdf)
+    # Liste pour stocker les chemins des QR codes
+    qr_paths = []
 
-        # Assurez-vous qu'il n'y a qu'une seule colonne géométrique
-        if 'geometry' in processed_gdf.columns:
-            processed_gdf = processed_gdf.set_geometry('geometry')
-            other_geo_columns = [
-                col for col in processed_gdf.select_dtypes(include=['geometry']).columns if col != 'geometry'
-            ]
-            if other_geo_columns:
-                processed_gdf = processed_gdf.drop(columns=other_geo_columns)
-        else:
-            geo_cols = processed_gdf.select_dtypes(include=['geometry']).columns
-            if geo_cols:
-                processed_gdf = processed_gdf.set_geometry(geo_cols[0])
-                processed_gdf = processed_gdf.drop(columns=[col for col in geo_cols if col != geo_cols[0]])
-            else:
-                raise ValueError("Aucune colonne géométrique valide trouvée dans le GeoDataFrame.")
+    # Traiter par lots pour limiter la consommation de mémoire
+    for start in range(0, len(parcellaire), batch_size):
+        batch = parcellaire.iloc[start:start + batch_size].copy()
+        logging.info(f"Traitement du lot {start} à {start + batch_size}")
 
-        # Générez les QR codes et ajoutez les colonnes associées
-        qr_output_folder = os.path.join('media', 'qr_codes')
-        processed_gdf = generate_qr_codes(processed_gdf, qr_output_folder)
+        for index, row in batch.iterrows():
+            try:
+                # Valider geo_uri
+                if not row['geo_uri'] or not isinstance(row['geo_uri'], str):
+                    logging.warning(f"geo_uri invalide pour parcelle {row['CodeBDN']}: {row['geo_uri']}")
+                    qr_paths.append(None)
+                    continue
 
-        # Créer un nom de fichier unique pour le GeoJSON
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_geojson_path = os.path.join('media', f'processed_with_bdn_{timestamp}.geojson')
+                # Générer le QR code avec qrcode
+                qr = qrcode.QRCode(
+                    version=1,  # Taille minimale
+                    error_correction=qrcode.constants.ERROR_CORRECT_L,  # Correction d'erreur basse
+                    box_size=5,  # Taille des modules réduite
+                    border=1  # Bordure minimale
+                )
+                qr.add_data(row['geo_uri'])
+                qr.make(fit=True)
 
-        # Sauvegarder le fichier GeoJSON enrichi
-        processed_gdf.to_file(output_geojson_path, driver="GeoJSON")
+                # Sauvegarder l'image
+                img = qr.make_image(fill_color="black", back_color="white")
+                qr_filename = os.path.join(output_folder, f"CODIF_{row['CodeBDN']}.png")
+                img.save(qr_filename)
+                qr_paths.append(qr_filename)
 
-        # Créer un fichier ZIP contenant les QR codes
-        zip_filename = os.path.join('media', f'qr_codes_{timestamp}.zip')
-        with ZipFile(zip_filename, 'w') as zip_file:
-            for root, _, files in os.walk(qr_output_folder):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    arcname = os.path.relpath(file_path, qr_output_folder)  # Relatif au dossier QR codes
-                    zip_file.write(file_path, arcname)
+            except Exception as e:
+                logging.error(f"Erreur lors de la génération du QR code pour {row['CodeBDN']}: {e}")
+                qr_paths.append(None)
 
-        # Construire les URLs pour le téléchargement
-        geojson_url = request.build_absolute_uri(f'/media/{os.path.basename(output_geojson_path)}')
-        zip_url = request.build_absolute_uri(f'/media/{os.path.basename(zip_filename)}')
+        # Libérer la mémoire après chaque lot
+        del batch
+        gc.collect()
 
-        return JsonResponse({
-            'geojson_url': geojson_url,
-            'zip_url': zip_url,
-            'alert': {
-                'type': 'success',
-                'message': 'Les codes BDN et QR codes ont été générés avec succès. Vous pouvez télécharger les fichiers.'
-            }
-        }, status=200)
+    # Ajouter les chemins des QR codes au GeoDataFrame
+    parcellaire['QRCode'] = pd.Series(qr_paths, index=parcellaire.index)
 
-    except Exception as e:
-        logging.error(f"Erreur lors de la génération des codes BDN : {e}")
-        return JsonResponse({
-            'alert': {
-                'type': 'error',
-                'message': f"Erreur lors de la génération : {e}"
-            }
-        }, status=400)
+    # Supprimer les colonnes temporaires
+    parcellaire.drop(columns=['centroid_lon', 'centroid_lat', 'geo_uri'], inplace=True)
+
+    return parcellaire
 
 
 
