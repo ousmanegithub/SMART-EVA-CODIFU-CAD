@@ -10,7 +10,7 @@ urlpatterns = [
     path('api/upload_geojson_eval/', views.upload_geojson_eval, name='upload_geojson_eval'),
     path('upload_geojson_local/', views.upload_geojson_local, name='upload_geojson_local'),
 
-    path('home/', views.home_view, name='home_view'),
+    path('', views.home_view, name='home_view'),
     path('eval/', views.eval_view, name='eval_view'),
     path('about/', views.about, name='about'),
     path('setup/', views.setup, name='setup'),
