@@ -131,7 +131,7 @@ TEMP_FILE_PATH = os.path.join('media', 'temp_uploaded_file.geojson')
 def upload_geojson(request):
     if request.method == 'POST':
         try:
-            # Vérifiez que le fichier a été envoyé
+
             file = request.FILES.get('file')
             if not file:
                 return JsonResponse({'error': 'Aucun fichier fourni.'}, status=400)
@@ -141,13 +141,13 @@ def upload_geojson(request):
             if 'features' not in data or not data['features']:
                 return JsonResponse({'error': 'Le fichier GeoJSON est vide ou invalide.'}, status=400)
 
-            # Sauvegarder temporairement le fichier pour une utilisation ultérieure
+
             if not os.path.exists('media'):
-                os.makedirs('media')  # Créez le dossier s'il n'existe pas
+                os.makedirs('media')
             with open(TEMP_FILE_PATH, 'w', encoding='utf-8') as temp_file:
                 json.dump(data, temp_file, ensure_ascii=False, indent=4)
 
-            # Retourner les données pour affichage sur la carte
+
             return JsonResponse({'geojson': data, 'message': 'Fichier importé avec succès.'}, status=200)
 
         except Exception as e:
@@ -170,7 +170,7 @@ def upload_geojson_eval(request):
             if 'features' not in data or not data['features']:
                 return JsonResponse({'error': 'Le fichier GeoJSON est vide ou invalide.'}, status=400)
 
-            # Nettoyer les géométries invalides
+
             cleaned_features = []
             for feature in data['features']:
                 if feature['geometry']['type'] != 'Polygon':
@@ -284,10 +284,10 @@ def generate_street_view(request):
                 nodes=False, edges=True
             )
 
-            # Générer les images Street View et récupérer les résultats
+
             results = process_street_view(gdf, roads)
 
-            # Préparer la réponse
+
             response_data = {
                 "status": "success",
                 "images": [
@@ -466,12 +466,12 @@ def generate_multi_step_report_local(request):
         try:
             logger.info("Requête POST reçue pour generate_multi_step_report_local")
 
-            # Vérifier l'existence des fichiers GeoJSON
+
             if not os.path.exists(TEMP_FILE_PATH_EVAL) or not os.path.exists(TEMP_FILE_PATH_LOCAL):
                 logger.error("Fichiers GeoJSON manquants : TEMP_FILE_PATH_EVAL=%s, TEMP_FILE_PATH_LOCAL=%s", TEMP_FILE_PATH_EVAL, TEMP_FILE_PATH_LOCAL)
                 return JsonResponse({'error': 'Fichiers GeoJSON manquants (parcelles ou local).'}, status=400)
 
-            # Récupérer les nicad filtrés depuis la requête
+
             filtered_nicads_json = request.POST.get('filtered_nicads', '[]')
             logger.info("filtered_nicads_json reçu : %s", filtered_nicads_json)
             try:
@@ -484,7 +484,7 @@ def generate_multi_step_report_local(request):
                 logger.warning("Aucun nicad filtré fourni")
                 return JsonResponse({'error': 'Aucune parcelle sélectionnée pour l\'évaluation.'}, status=400)
 
-            # Charger le GeoDataFrame des parcelles et filtrer selon les nicad
+
             logger.info("Chargement du fichier GeoJSON : %s", TEMP_FILE_PATH_EVAL)
             gdf = gpd.read_file(TEMP_FILE_PATH_EVAL)
             logger.info("Filtrage des parcelles avec nicad : %s", filtered_nicads)
@@ -644,120 +644,6 @@ def generate_multi_step_report_local(request):
 
 
 
-""" def simplify_geometry(geom):
-    
-    if isinstance(geom, MultiPolygon):
-        return max(geom.geoms, key=lambda g: g.area)  # Garder le plus grand Polygon
-    return geom
-
-
-
-
-@csrf_exempt
-def generate_bdn_codes(request):
-
-        
-        if request.method != "POST":
-            return JsonResponse({'error': 'Méthode non autorisée.'}, status=405)
-
-        try:
-            # Vérifiez que le fichier GeoJSON existe
-            uploaded_file_path = 'uploaded_geojson.json'
-            if not os.path.exists(uploaded_file_path):
-                return JsonResponse({'error': 'Aucun fichier GeoJSON trouvé. Veuillez uploader un fichier.'},
-                                    status=400)
-
-            # Charger le fichier GeoJSON dans un GeoDataFrame
-            gdf = gpd.read_file(uploaded_file_path)
-
-            # Assurez-vous qu'une seule colonne géométrique est active
-            if gdf.geometry.name != 'geometry':
-                gdf.set_geometry('geometry', inplace=True)
-
-            # Convertir les géométries multiples en géométries simples
-            gdf['geometry'] = gdf['geometry'].apply(simplify_geometry)
-
-            # Nettoyer et générer les codes BDN
-            processed_gdf = process_geodataframe(gdf)
-
-            # Sauvegarder le GPKG enrichi
-            output_gpkg_path = 'processed_geojson_with_bdn.gpkg'
-            processed_gdf.to_file(output_gpkg_path, driver='GPKG')
-
-            # Générer les QR codes
-            qr_output_folder = "qr_codes"
-            if os.path.exists(qr_output_folder):
-                shutil.rmtree(qr_output_folder)
-            os.makedirs(qr_output_folder)
-            generate_qr_codes(processed_gdf, qr_output_folder)
-
-            # Créer un fichier ZIP contenant les QR codes
-            zip_file_path = os.path.join(qr_output_folder, "qr_codes.zip")
-            with ZipFile(zip_file_path, 'w') as zip_file:
-                for root, _, files in os.walk(qr_output_folder):
-                    for file in files:
-                        if file.endswith(".png"):
-                            file_path = os.path.join(root, file)
-                            zip_file.write(file_path, arcname=os.path.basename(file_path))
-
-            return JsonResponse({
-                'message': 'Codes BDN générés avec succès.',
-                'gpkg_url': f"/{output_gpkg_path}",  # Chemin pour le fichier GPKG
-                'qr_zip_url': f"/{zip_file_path}"  # Chemin pour le ZIP des QR codes
-            }, status=200)
-
-        except Exception as e:
-            logging.error(f"Erreur lors de la génération des codes BDN : {e}")
-            return JsonResponse({'error': f'Erreur lors de la génération des codes BDN : {e}'}, status=400)"""
-
-
-from django.http import JsonResponse
-from .models import Parcelle
-import geopandas as gpd
-
-"""def upload_geospatial_file(request, load_wkt=None):
-    if request.method == 'POST' and request.FILES.get('file'):
-        uploaded_file = request.FILES['file']
-        try:
-            # Chargement dans un GeoDataFrame
-            gdf = gpd.read_file(uploaded_file)
-
-            # Vérifiez et nettoyez les colonnes géométriques
-            if 'geometry' not in gdf.columns:
-                raise ValueError("Aucune colonne 'geometry' trouvée dans le fichier.")
-            if gdf.select_dtypes(include=['geometry']).shape[1] > 1:
-                gdf = gdf.set_geometry('geometry')
-                gdf.drop(columns=[col for col in gdf.columns if col != 'geometry'], inplace=True)
-
-            # Conversion des colonnes WKT en géométrie
-            if 'geometry' in gdf.columns and not isinstance(gdf['geometry'].iloc[0], gpd.GeoSeries):
-                gdf['geometry'] = gdf['geometry'].apply(load_wkt)
-
-            # Corrigez les géométries invalides
-            if not gdf.is_valid.all():
-                gdf['geometry'] = gdf['geometry'].apply(make_valid)
-
-            # Enregistrez dans la base de données
-            for _, row in gdf.iterrows():
-                Parcelle.objects.create(
-                    geometry=row.geometry,
-                    nom=row.get('NOM', None),
-                    theme=row.get('THEME', None),
-                    pays=row.get('PAYS', None),
-                    iduu=row.get('IDUU', None),
-                    sum_superf=row.get('SUM_SUPERF', None),
-                    shape_leng=row.get('Shape_Leng', None),
-                    shape_area=row.get('Shape_Area', None),
-                )
-
-            return JsonResponse({'message': 'Fichier importé avec succès !'}, status=200)
-
-        except Exception as e:
-            logging.error(f"Erreur lors de l'importation : {e}")
-            return JsonResponse({'error': f"Erreur lors de l'importation : {e}"}, status=400)
-
-    return JsonResponse({'error': 'Aucun fichier fourni.'}, status=400)"""
-
 
 from django.http import JsonResponse
 from .models import Parcelle
@@ -790,10 +676,10 @@ def generate_bdn_codes(parcellaire: gpd.GeoDataFrame, output_folder: str, batch_
     Génère des QR codes pour chaque parcelle basée sur sa géolocalisation et enregistre les images.
     Traite les données par lots pour limiter l'utilisation de la mémoire.
     """
-    # Loguer la taille du GeoDataFrame pour diagnostic
+
     logging.info(f"Nombre de parcelles à traiter : {len(parcellaire)}")
 
-    # Transformer les coordonnées en EPSG:4326 (latitude, longitude)
+
     transformer = Transformer.from_crs(parcellaire.crs, "EPSG:4326", always_xy=True)
     parcellaire['centroid_lon'], parcellaire['centroid_lat'] = transformer.transform(
         parcellaire['coord_x'], parcellaire['coord_y']
@@ -802,11 +688,11 @@ def generate_bdn_codes(parcellaire: gpd.GeoDataFrame, output_folder: str, batch_
         lambda row: f"geo:{row['centroid_lat']},{row['centroid_lon']}", axis=1
     )
 
-    # Créer le dossier de sortie s'il n'existe pas
+
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
-    # Liste pour stocker les chemins des QR codes
+
     qr_paths = []
 
     # Traiter par lots pour limiter la consommation de mémoire
@@ -842,14 +728,14 @@ def generate_bdn_codes(parcellaire: gpd.GeoDataFrame, output_folder: str, batch_
                 logging.error(f"Erreur lors de la génération du QR code pour {row['CodeBDN']}: {e}")
                 qr_paths.append(None)
 
-        # Libérer la mémoire après chaque lot
+
         del batch
         gc.collect()
 
-    # Ajouter les chemins des QR codes au GeoDataFrame
+
     parcellaire['QRCode'] = pd.Series(qr_paths, index=parcellaire.index)
 
-    # Supprimer les colonnes temporaires
+
     parcellaire.drop(columns=['centroid_lon', 'centroid_lat', 'geo_uri'], inplace=True)
 
     return parcellaire
@@ -928,7 +814,7 @@ def view_generated_data(request):
 
         search_query = request.GET.get('search', '').strip().lower()
         if search_query:
-            # Filtrer le DataFrame basé sur la colonne NOM
+
             gdf = gdf[gdf['region'].str.lower().str.contains(search_query)]
 
         data = gdf.to_dict(orient='records')
@@ -985,7 +871,7 @@ def generate_individual_report(request):
             if not os.path.exists(TEMP_FILE_PATH_EVAL):
                 return JsonResponse({'error': 'Aucun fichier GeoJSON importé.'}, status=400)
 
-            # Charger le GeoDataFrame et trouver la parcelle
+
             gdf = gpd.read_file(TEMP_FILE_PATH_EVAL)
             parcelle = gdf[gdf['nicad'] == nicad].copy()
             if parcelle.empty:

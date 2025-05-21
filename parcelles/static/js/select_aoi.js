@@ -155,7 +155,7 @@ fetch('/parcelles/')
 $("#generate-bdn-form").on("submit", function (e) {
     e.preventDefault();
 
-    // Affiche une alerte de traitement
+
     Swal.fire({
         title: 'Génération en cours...',
         html: 'Veuillez patienter pendant que les codes BDN sont générés.',
@@ -165,7 +165,7 @@ $("#generate-bdn-form").on("submit", function (e) {
         }
     });
 
-    // Envoyer la requête pour générer les codes BDN
+
     fetch($(this).attr("action"), {
         method: "POST",
         headers: {
@@ -174,9 +174,9 @@ $("#generate-bdn-form").on("submit", function (e) {
     })
         .then(response => response.json())
         .then(data => {
-            Swal.close(); // Fermer l'alerte de traitement
+            Swal.close();
 
-            // Vérifier la réponse du serveur
+
             if (data.alert && data.alert.type === 'success') {
                 Swal.fire({
                     icon: 'success',
@@ -184,15 +184,15 @@ $("#generate-bdn-form").on("submit", function (e) {
                     text: data.alert.message,
                     confirmButtonText: 'OK'
                 }).then(() => {
-                    // Afficher les boutons Export
+
                     if (data.geojson_url) {
-                        window.generatedFileUrl = data.geojson_url; // Sauvegarder l'URL pour le téléchargement
-                        $("#export").show(); // Afficher le bouton pour le fichier GeoJSON
+                        window.generatedFileUrl = data.geojson_url;
+                        $("#export").show();
                     }
 
                     if (data.zip_url) {
-                        window.qrCodesFileUrl = data.zip_url; // Sauvegarder l'URL du fichier ZIP des QR codes
-                        $("#download-qr-zip").show(); // Afficher le bouton pour les QR codes
+                        window.qrCodesFileUrl = data.zip_url;
+                        $("#download-qr-zip").show();
                     }
                 });
             } else {
@@ -214,12 +214,12 @@ $("#generate-bdn-form").on("submit", function (e) {
         });
 });
 
-// Gestion du clic sur le bouton Export pour le fichier GeoJSON
+
 $("#export").on("click", function () {
     if (window.generatedFileUrl) {
         const link = document.createElement('a');
         link.href = window.generatedFileUrl;
-        link.download = "generated_bdn.geojson"; // Nom du fichier
+        link.download = "generated_bdn.geojson";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -239,12 +239,12 @@ $("#export").on("click", function () {
     }
 });
 
-// Gestion du clic sur le bouton Export pour les QR codes
+
 $("#download-qr-zip").on("click", function () {
     if (window.qrCodesFileUrl) {
         const link = document.createElement('a');
         link.href = window.qrCodesFileUrl;
-        link.download = "qr_codes.zip"; // Nom du fichier ZIP
+        link.download = "qr_codes.zip";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

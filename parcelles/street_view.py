@@ -76,7 +76,7 @@ def process_street_view(gdf, roads):
 
     driver.quit()
 
-    # Sauvegarder les résultats dans un fichier Excel
+
     if results:
         df = pd.DataFrame(results)
         print(f"Saving Street View links to: {STREET_VIEW_EXCEL}")

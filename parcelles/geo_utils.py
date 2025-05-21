@@ -10,7 +10,7 @@ def validate_gdf(gdf):
         print("⚠️ Aucun CRS détecté, attribution manuelle à EPSG:4326")
         gdf.set_crs(epsg=4326, inplace=True)
 
-    # Vérifier que les géométries sont valides
+
     gdf = gdf[gdf.is_valid]
     return gdf
 
