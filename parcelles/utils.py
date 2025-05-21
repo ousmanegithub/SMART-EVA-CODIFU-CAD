@@ -1,7 +1,9 @@
+import gc
 import hashlib
 import logging
 import pandas as pd
 import geopandas as gpd
+import qrcode
 from shapely.validation import make_valid
 import numpy as np
 import random
@@ -140,10 +142,8 @@ def process_geodataframe(parcellaire: gpd.GeoDataFrame,
     return parcellaire
 
 
-def generate_qr_codes(parcellaire: gpd.GeoDataFrame, output_folder: str):
-    """
-    Génère des QR codes pour chaque parcelle basée sur sa géolocalisation et enregistre les images.
-    """
+def generate_qr_codes(parcellaire: gpd.GeoDataFrame, output_folder: str, batch_size=100):
+    logging.info(f"Nombre de parcelles à traiter : {len(parcellaire)}")
     transformer = Transformer.from_crs(parcellaire.crs, "EPSG:4326", always_xy=True)
     parcellaire['centroid_lon'], parcellaire['centroid_lat'] = transformer.transform(parcellaire['coord_x'], parcellaire['coord_y'])
     parcellaire['geo_uri'] = parcellaire.apply(lambda row: f"geo:{row['centroid_lat']},{row['centroid_lon']}", axis=1)
@@ -151,10 +151,29 @@ def generate_qr_codes(parcellaire: gpd.GeoDataFrame, output_folder: str):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
-    for index, row in parcellaire.iterrows():
-        qr = pyqrcode.create(row['geo_uri'])
-        qr_filename = os.path.join(output_folder, f"CODIF_{row['CodeBDN']}.png")
-        qr.png(qr_filename, scale=6)
-        parcellaire.at[index, 'QRCode'] = qr_filename
+    qr_paths = []
+    for start in range(0, len(parcellaire), batch_size):
+        batch = parcellaire.iloc[start:start + batch_size].copy()
+        logging.info(f"Traitement du lot {start} à {start + batch_size}")
+        for index, row in batch.iterrows():
+            try:
+                if not row['geo_uri'] or not isinstance(row['geo_uri'], str):
+                    logging.warning(f"geo_uri invalide pour parcelle {row['CodeBDN']}: {row['geo_uri']}")
+                    qr_paths.append(None)
+                    continue
+                qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=5, border=1)
+                qr.add_data(row['geo_uri'])
+                qr.make(fit=True)
+                img = qr.make_image(fill_color="black", back_color="white")
+                qr_filename = os.path.join(output_folder, f"CODIF_{row['CodeBDN']}.png")
+                img.save(qr_filename)
+                qr_paths.append(qr_filename)
+            except Exception as e:
+                logging.error(f"Erreur lors de la génération du QR code pour {row['CodeBDN']}: {e}")
+                qr_paths.append(None)
+        del batch
+        gc.collect()
 
+    parcellaire['QRCode'] = pd.Series(qr_paths, index=parcellaire.index)
+    parcellaire.drop(columns=['centroid_lon', 'centroid_lat', 'geo_uri'], inplace=True)
     return parcellaire
