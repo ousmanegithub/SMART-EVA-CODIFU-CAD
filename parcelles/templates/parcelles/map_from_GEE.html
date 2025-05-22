@@ -306,12 +306,12 @@
                                 .then(response => response.json())
                                 .then(data => {
                                     if (data.local_geojson) {
-                                        // Si une couche local existe déjà, la supprimer
+
                                         if (localLayer) {
                                             localLayer.remove();
                                         }
 
-                                        // Ajouter la nouvelle couche local à la carte
+
                                         localLayer = L.geoJSON(data.local_geojson, {
                                             style: {
                                                 color: "#ff0000", // Couleur rouge pour la couche local
@@ -336,7 +336,7 @@
                                                     });
                                                 }
 
-                                                // Ajouter un popup qui s'ouvre au clic sur le polygone ou son étiquette
+
                                                 const popupContent = `
                                                     <div>
                                                         <h4>Informations sur ${feature.properties.Nom || 'ce polygone'}</h4>
@@ -349,7 +349,7 @@
                                                     maxWidth: 300 // Largeur maximale du popup
                                                 });
 
-                                                // Ajouter un événement au clic sur le bouton "Évaluer"
+
                                                 layer.on('popupopen', function () {
                                                     const btn = document.getElementById(`eval-parcels-btn-${feature.properties.Nom || 'polygone-' + Math.random().toString(36).substr(2, 9)}`);
                                                     if (btn) {

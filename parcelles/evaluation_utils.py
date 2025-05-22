@@ -81,7 +81,7 @@ def get_bareme(region, categorie):
             bareme = bareme_individuel.get(categorie)
         else:
             return 0
-        return bareme[index] if bareme else 0  # Retourne une valeur unique pour la région
+        return bareme[index] if bareme else 0
     except ValueError:
         return 0
 
@@ -248,16 +248,16 @@ def generate_pdf_report(nicad, data, image_path=None, street_view_url="Non dispo
     styles = getSampleStyleSheet()
     story = []
 
-    # Styles personnalisés
+
     styles['Title'].fontSize = 14
-    styles['Title'].alignment = 1  # Centré
+    styles['Title'].alignment = 1
     styles['Heading2'].fontSize = 12
     styles['Normal'].fontSize = 10
 
     link_style = ParagraphStyle(
         name='LinkStyle',
         parent=styles['Normal'],
-        textColor=colors.blue,  # Couleur bleue
+        textColor=colors.blue,
         fontSize=10,
         leading=12
     )
@@ -267,7 +267,7 @@ def generate_pdf_report(nicad, data, image_path=None, street_view_url="Non dispo
     logo2_path = os.path.join(settings.STATIC_ROOT, 'images', 'LOGO-DGID-WEB.png')  # Logo du haut
     qr_code_path = data['QRCode']
 
-    # Support pour STATICFILES_DIRS en mode DEBUG
+
     if settings.DEBUG and not os.path.exists(logo1_path):
         for static_dir in settings.STATICFILES_DIRS:
             temp_path = os.path.join(static_dir, 'images', 'ministere-des-finances-et-du-budget.png')
@@ -281,7 +281,7 @@ def generate_pdf_report(nicad, data, image_path=None, street_view_url="Non dispo
                 logo2_path = temp_path
                 break
 
-    # Préparer les éléments pour l'en-tête avec tailles augmentées
+
     logo1_img = Image(logo1_path, width=3*cm, height=3*cm) if os.path.exists(logo1_path) else Paragraph("", styles['Normal'])  # Logo du bas
     logo2_img = Image(logo2_path, width=3*cm, height=3*cm) if os.path.exists(logo2_path) else Paragraph("", styles['Normal'])  # Logo du haut
     qr_img = Image(qr_code_path, width=3*cm, height=3*cm) if os.path.exists(qr_code_path) else Paragraph("", styles['Normal'])
@@ -301,30 +301,30 @@ def generate_pdf_report(nicad, data, image_path=None, street_view_url="Non dispo
     else:
         logger.warning(f"QR code non trouvé à : {qr_code_path}")
 
-    # Combiner "Code BDN" et QR code dans une seule cellule avec un petit espace
+
     qr_column = [
         code_bdn_text,
-        Spacer(1, 0.2*cm),  # Petit espace entre "Code BDN" et QR code
+        Spacer(1, 0.2*cm),
         qr_img
     ]
 
-    # Créer un tableau pour empiler les logos à gauche et "Code BDN" + QR code à droite
+
     header_data = [
-        [logo1_img, Paragraph("", styles['Normal']), qr_column],  # Ligne 1 : Logo DGID et "Code BDN" + QR
-        [logo2_img, Paragraph("", styles['Normal']), Paragraph("", styles['Normal'])]  # Ligne 2 : Logo Ministère
+        [logo1_img, Paragraph("", styles['Normal']), qr_column],
+        [logo2_img, Paragraph("", styles['Normal']), Paragraph("", styles['Normal'])]
     ]
-    header_table = Table(header_data, colWidths=[3.5*cm, 11*cm, 3.5*cm])  # Largeurs des colonnes
+    header_table = Table(header_data, colWidths=[3.5*cm, 11*cm, 3.5*cm])
     header_table.setStyle([
-        ('ALIGN', (0, 0), (0, 1), 'LEFT'),  # Logos alignés à gauche
-        ('ALIGN', (2, 0), (2, 0), 'RIGHT'),  # "Code BDN" + QR alignés à droite
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),  # Centrer verticalement
-        ('GRID', (0, 0), (-1, -1), 0, colors.transparent),  # Pas de bordures
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),  # Réduire le padding
+        ('ALIGN', (0, 0), (0, 1), 'LEFT'),
+        ('ALIGN', (2, 0), (2, 0), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0, colors.transparent),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ('RIGHTPADDING', (0, 0), (-1, -1), 0),
     ])
     story.append(header_table)
 
-    # Ajouter le texte "DIRECTION DU CADASTRE" sous les logos
+
     if os.path.exists(logo2_path):
         story.append(Paragraph("DIRECTION DU CADASTRE", styles['Normal']))
     story.append(Spacer(1, 0.5*cm))
@@ -400,7 +400,7 @@ def generate_pdf_report(nicad, data, image_path=None, street_view_url="Non dispo
         story.append(Paragraph("Prise de vue : Image non disponible", styles['Normal']))
     story.append(Spacer(1, 0.5 * cm))
 
-    # Construire le PDF
+
     doc.build(story)
     logger.info(f"PDF généré avec succès : {pdf_path}")
     return pdf_path

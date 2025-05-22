@@ -74,7 +74,7 @@ body {
 
 /* Footer Styles */
 .custom-footer {
-    background-color: #613a01; /* Même couleur que la navbar */
+    background-color: #613a01;
     padding: 10px 20px;
     height: 60px; /* Même hauteur que la navbar */
     width: 100%;
