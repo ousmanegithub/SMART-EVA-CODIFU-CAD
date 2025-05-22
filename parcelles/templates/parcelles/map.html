@@ -65,23 +65,7 @@
                         <div id="processing-message" style="display: none; margin-top: 10px;"></div>
                         <a id="download-geojson" class="btn btn-info mt-3" style="display:none;">Télécharger le fichier enrichi</a>
 
-                        <script>
-                            document.getElementById("generate-bdn").addEventListener("click", function () {
-                                fetch("{% url 'generate_bdn_codes' %}", {
-                                    method: "POST",
-                                    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
-                                })
-                                .then(response => response.json())
-                                .then(data => {
-                                    if (data.gpkg_file) {
-                                        const link = document.getElementById("download-file");
-                                        link.href = `/${data.gpkg_file}`;
-                                        link.style.display = "block";
-                                    }
-                                })
-                                .catch(err => console.error("Erreur :", err));
-                            });
-                        </script>
+
 
                         <br>
 

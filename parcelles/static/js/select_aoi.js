@@ -39,24 +39,6 @@ $(function () {
     });
     map.addControl(drawControlFull);
 
-    // Exporter le GeoJSON
-    map.on("draw:created", function (e) {
-        document.getElementById("export").style.display = "initial";
-        var temp = drawnItems.addLayer(e.layer);
-        document.getElementById('export').onclick = function (e) {
-            var data = drawnItems.toGeoJSON();
-            var convertedData = 'text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data));
-            document.getElementById('export').setAttribute('href', 'data:' + convertedData);
-            document.getElementById('export').setAttribute('download', 'drawn_aoi.geojson');
-        };
-    });
-
-
-
-
-
-
-
 
     // Importer un GeoJSON
     $('#geojson-upload').on('change', function (event) {
@@ -103,32 +85,7 @@ $(function () {
     });
 
 
-    $("#generate-bdn").on("click", function () {
-        const processingMessage = $("#processing-message");
 
-        processingMessage.text("Traitement en cours... Veuillez patienter.").show();
-
-        fetch("{% url 'generate_bdn_codes' %}", {
-            method: "POST",
-            headers: {
-                "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
-            },
-        })
-            .then((response) => response.json())
-            .then((data) => {
-                if (data.geojson_url) {
-                    $("#download-file").attr("href", data.geojson_url).show();
-                    processingMessage.text("Traitement terminé avec succès !").css("color", "green");
-                } else {
-                    processingMessage.text("Erreur lors du traitement.").css("color", "red");
-                    alert(data.error || "Erreur inconnue.");
-                }
-            })
-            .catch((error) => {
-                processingMessage.text("Erreur lors du traitement.").css("color", "red");
-                console.error("Erreur :", error);
-            });
-    });
 
 
 
@@ -155,7 +112,6 @@ fetch('/parcelles/')
 $("#generate-bdn-form").on("submit", function (e) {
     e.preventDefault();
 
-
     Swal.fire({
         title: 'Génération en cours...',
         html: 'Veuillez patienter pendant que les codes BDN sont générés.',
@@ -164,7 +120,6 @@ $("#generate-bdn-form").on("submit", function (e) {
             Swal.showLoading();
         }
     });
-
 
     fetch($(this).attr("action"), {
         method: "POST",
@@ -176,7 +131,6 @@ $("#generate-bdn-form").on("submit", function (e) {
         .then(data => {
             Swal.close();
 
-
             if (data.alert && data.alert.type === 'success') {
                 Swal.fire({
                     icon: 'success',
@@ -184,7 +138,6 @@ $("#generate-bdn-form").on("submit", function (e) {
                     text: data.alert.message,
                     confirmButtonText: 'OK'
                 }).then(() => {
-
                     if (data.geojson_url) {
                         window.generatedFileUrl = data.geojson_url;
                         $("#export").show();
@@ -214,12 +167,13 @@ $("#generate-bdn-form").on("submit", function (e) {
         });
 });
 
-
 $("#export").on("click", function () {
     if (window.generatedFileUrl) {
         const link = document.createElement('a');
         link.href = window.generatedFileUrl;
-        link.download = "generated_bdn.geojson";
+        // Extraire le nom du fichier à partir de l'URL
+        const filename = window.generatedFileUrl.split('/').pop();
+        link.download = filename;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -239,12 +193,13 @@ $("#export").on("click", function () {
     }
 });
 
-
 $("#download-qr-zip").on("click", function () {
     if (window.qrCodesFileUrl) {
         const link = document.createElement('a');
         link.href = window.qrCodesFileUrl;
-        link.download = "qr_codes.zip";
+        // Extraire le nom du fichier à partir de l'URL
+        const filename = window.qrCodesFileUrl.split('/').pop();
+        link.download = filename;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

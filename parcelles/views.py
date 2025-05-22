@@ -672,7 +672,7 @@ import gc
 import logging
 
 @csrf_exempt
-def generate_bdn_codes(request, output_folder=None):
+def generate_bdn_codes(request):
     if request.method != "POST":
         return JsonResponse({
             'alert': {
@@ -691,24 +691,8 @@ def generate_bdn_codes(request, output_folder=None):
                 }
             }, status=400)
 
-        # Utiliser un dossier par défaut si non spécifié
-        if output_folder is None:
-            output_folder = os.path.join('media', 'qr_codes')
-
         # Chargez le fichier temporaire
         gdf = gpd.read_file(TEMP_FILE_PATH)
-
-        # Limiter le nombre de parcelles
-        MAX_PARCELLES = 5000
-        if len(gdf) > MAX_PARCELLES:
-            return JsonResponse({
-                'alert': {
-                    'type': 'error',
-                    'message': f'Trop de parcelles ({len(gdf)}). La limite est de {MAX_PARCELLES}. Veuillez réduire la taille du fichier.'
-                }
-            }, status=400)
-
-        logging.info(f"Nombre de parcelles chargées : {len(gdf)}")
 
         # Traitement de gdf
         processed_gdf = process_geodataframe(gdf)
@@ -716,7 +700,9 @@ def generate_bdn_codes(request, output_folder=None):
         # Assurez-vous qu'il n'y a qu'une seule colonne géométrique
         if 'geometry' in processed_gdf.columns:
             processed_gdf = processed_gdf.set_geometry('geometry')
-            other_geo_columns = [col for col in processed_gdf.select_dtypes(include=['geometry']).columns if col != 'geometry']
+            other_geo_columns = [
+                col for col in processed_gdf.select_dtypes(include=['geometry']).columns if col != 'geometry'
+            ]
             if other_geo_columns:
                 processed_gdf = processed_gdf.drop(columns=other_geo_columns)
         else:
@@ -728,7 +714,8 @@ def generate_bdn_codes(request, output_folder=None):
                 raise ValueError("Aucune colonne géométrique valide trouvée dans le GeoDataFrame.")
 
         # Générez les QR codes et ajoutez les colonnes associées
-        processed_gdf = generate_qr_codes(processed_gdf, output_folder)
+        qr_output_folder = os.path.join('media', 'qr_codes')
+        processed_gdf = generate_qr_codes(processed_gdf, qr_output_folder)
 
         # Créer un nom de fichier unique pour le GeoJSON
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -740,10 +727,10 @@ def generate_bdn_codes(request, output_folder=None):
         # Créer un fichier ZIP contenant les QR codes
         zip_filename = os.path.join('media', f'qr_codes_{timestamp}.zip')
         with ZipFile(zip_filename, 'w') as zip_file:
-            for root, _, files in os.walk(output_folder):
+            for root, _, files in os.walk(qr_output_folder):
                 for file in files:
                     file_path = os.path.join(root, file)
-                    arcname = os.path.relpath(file_path, output_folder)
+                    arcname = os.path.relpath(file_path, qr_output_folder)  # Relatif au dossier QR codes
                     zip_file.write(file_path, arcname)
 
         # Construire les URLs pour le téléchargement
@@ -764,7 +751,7 @@ def generate_bdn_codes(request, output_folder=None):
         return JsonResponse({
             'alert': {
                 'type': 'error',
-                'message': f"Erreur lors de la génération : {str(e)}"
+                'message': f"Erreur lors de la génération : {e}"
             }
         }, status=400)
 
