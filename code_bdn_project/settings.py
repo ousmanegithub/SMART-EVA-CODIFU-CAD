@@ -16,8 +16,8 @@ import os
 import dj_database_url
 
 # Remplacez par le chemin exact vers gdal309.dll
-GDAL_LIBRARY_PATH = r"C:\OSGeo4W\bin\gdal309.dll"
-os.environ["GDAL_LIBRARY_PATH"] = GDAL_LIBRARY_PATH
+#GDAL_LIBRARY_PATH = r"C:\OSGeo4W\bin\gdal309.dll"
+#os.environ["GDAL_LIBRARY_PATH"] = GDAL_LIBRARY_PATH
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
