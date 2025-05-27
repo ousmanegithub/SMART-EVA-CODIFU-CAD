@@ -1,5 +1,5 @@
 $(function () {
-    // Initialisation de la carte
+
     var map = L.map('map_aoi', {
         zoomControl: true,
         center: [42.35, -71.08],
@@ -8,19 +8,19 @@ $(function () {
     map.zoomControl.setPosition('topright');
     osm.addTo(map);
 
-    // Groupe de calques éditables
+
     var drawnItems = new L.FeatureGroup();
     map.addLayer(drawnItems);
 
-    // Contrôle de dessin
+
     var drawControlFull = new L.Control.Draw({
         position: 'topright',
         draw: {
             polygon: {
-                allowIntersection: false, // Restreindre les intersections
+                allowIntersection: false,
                 drawError: {
-                    color: '#e1e100', // Couleur de l'erreur
-                    message: '<strong>Oh snap!<strong> Impossible de dessiner cela !' // Message d'erreur
+                    color: '#e1e100',
+                    message: '<strong>Oh snap!<strong> Impossible de dessiner cela !'
                 },
                 shapeOptions: {
                     color: '#97009c'
@@ -66,9 +66,9 @@ $(function () {
                         }
                     }).addTo(drawnItems);
 
-                    console.log("Calque ajouté :", importedLayer); // Débogage
+                    console.log("Calque ajouté :", importedLayer);
 
-                    // Zoomer sur les données importées
+
                     map.fitBounds(importedLayer.getBounds());
                 } catch (error) {
                     alert("Erreur : fichier GeoJSON invalide.");
@@ -79,7 +79,7 @@ $(function () {
         }
     });
 
-    // Débogage : Vérifiez les calques dans drawnItems
+
     drawnItems.eachLayer(function (layer) {
         console.log("Calque existant dans drawnItems :", layer);
     });
@@ -112,6 +112,7 @@ fetch('/parcelles/')
 $("#generate-bdn-form").on("submit", function (e) {
     e.preventDefault();
 
+
     Swal.fire({
         title: 'Génération en cours...',
         html: 'Veuillez patienter pendant que les codes BDN sont générés.',
@@ -120,6 +121,7 @@ $("#generate-bdn-form").on("submit", function (e) {
             Swal.showLoading();
         }
     });
+
 
     fetch($(this).attr("action"), {
         method: "POST",
@@ -131,6 +133,7 @@ $("#generate-bdn-form").on("submit", function (e) {
         .then(data => {
             Swal.close();
 
+
             if (data.alert && data.alert.type === 'success') {
                 Swal.fire({
                     icon: 'success',
@@ -138,6 +141,7 @@ $("#generate-bdn-form").on("submit", function (e) {
                     text: data.alert.message,
                     confirmButtonText: 'OK'
                 }).then(() => {
+
                     if (data.geojson_url) {
                         window.generatedFileUrl = data.geojson_url;
                         $("#export").show();
@@ -167,13 +171,12 @@ $("#generate-bdn-form").on("submit", function (e) {
         });
 });
 
+
 $("#export").on("click", function () {
     if (window.generatedFileUrl) {
         const link = document.createElement('a');
         link.href = window.generatedFileUrl;
-        // Extraire le nom du fichier à partir de l'URL
-        const filename = window.generatedFileUrl.split('/').pop();
-        link.download = filename;
+        link.download = "generated_bdn.geojson";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -193,13 +196,12 @@ $("#export").on("click", function () {
     }
 });
 
+
 $("#download-qr-zip").on("click", function () {
     if (window.qrCodesFileUrl) {
         const link = document.createElement('a');
         link.href = window.qrCodesFileUrl;
-        // Extraire le nom du fichier à partir de l'URL
-        const filename = window.qrCodesFileUrl.split('/').pop();
-        link.download = filename;
+        link.download = "qr_codes.zip";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -218,7 +220,6 @@ $("#download-qr-zip").on("click", function () {
         });
     }
 });
-
 
 
 

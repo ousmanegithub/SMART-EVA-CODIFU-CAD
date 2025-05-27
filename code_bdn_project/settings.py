@@ -45,7 +45,7 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100MB
 SECRET_KEY = 'django-insecure-9@w937(@hj6fq=$tohf7t%rq0)7#0t)x&lcza9(*mnl#qi@%#z'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*.onrender.com', 'smart-eva-codifu-cad-1.onrender.com']
 

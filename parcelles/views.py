@@ -682,7 +682,7 @@ def generate_bdn_codes(request):
         }, status=405)
 
     try:
-        # Vérifiez si le fichier temporaire existe
+
         if not os.path.exists(TEMP_FILE_PATH):
             return JsonResponse({
                 'alert': {
@@ -691,13 +691,13 @@ def generate_bdn_codes(request):
                 }
             }, status=400)
 
-        # Chargez le fichier temporaire
+
         gdf = gpd.read_file(TEMP_FILE_PATH)
 
-        # Traitement de gdf
+
         processed_gdf = process_geodataframe(gdf)
 
-        # Assurez-vous qu'il n'y a qu'une seule colonne géométrique
+
         if 'geometry' in processed_gdf.columns:
             processed_gdf = processed_gdf.set_geometry('geometry')
             other_geo_columns = [
@@ -713,27 +713,27 @@ def generate_bdn_codes(request):
             else:
                 raise ValueError("Aucune colonne géométrique valide trouvée dans le GeoDataFrame.")
 
-        # Générez les QR codes et ajoutez les colonnes associées
+
         qr_output_folder = os.path.join('media', 'qr_codes')
         processed_gdf = generate_qr_codes(processed_gdf, qr_output_folder)
 
-        # Créer un nom de fichier unique pour le GeoJSON
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_geojson_path = os.path.join('media', f'processed_with_bdn_{timestamp}.geojson')
 
-        # Sauvegarder le fichier GeoJSON enrichi
+
         processed_gdf.to_file(output_geojson_path, driver="GeoJSON")
 
-        # Créer un fichier ZIP contenant les QR codes
+
         zip_filename = os.path.join('media', f'qr_codes_{timestamp}.zip')
         with ZipFile(zip_filename, 'w') as zip_file:
             for root, _, files in os.walk(qr_output_folder):
                 for file in files:
                     file_path = os.path.join(root, file)
-                    arcname = os.path.relpath(file_path, qr_output_folder)  # Relatif au dossier QR codes
+                    arcname = os.path.relpath(file_path, qr_output_folder)
                     zip_file.write(file_path, arcname)
 
-        # Construire les URLs pour le téléchargement
+
         geojson_url = request.build_absolute_uri(f'/media/{os.path.basename(output_geojson_path)}')
         zip_url = request.build_absolute_uri(f'/media/{os.path.basename(zip_filename)}')
 
