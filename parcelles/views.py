@@ -155,8 +155,11 @@ def upload_geojson(request):
     return JsonResponse({'error': 'Requête invalide.'}, status=400)
 
 
-TEMP_FILE_PATH_EVAL = os.path.join('media/upload', 'temp_uploaded_file_EVAL.geojson')
+import json
+import os
+import logging
 
+TEMP_FILE_PATH_EVAL = os.path.join('media/upload', 'temp_uploaded_file_EVAL.geojson')
 
 @csrf_exempt
 def upload_geojson_eval(request):
@@ -262,6 +265,7 @@ def upload_geojson_local(request):
             return JsonResponse({'error': f"Erreur lors de la lecture du fichier local : {str(e)}"}, status=400)
 
     return JsonResponse({'error': 'Méthode non autorisée.'}, status=405)
+
 
 @csrf_exempt
 def generate_street_view(request):
